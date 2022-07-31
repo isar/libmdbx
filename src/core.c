@@ -12966,6 +12966,8 @@ __cold static int mdbx_handle_env_pathname(MDBX_handle_env_pathname *ctx,
     return MDBX_EINVAL;
 
 #if defined(_WIN32) || defined(_WIN64)
+  setlocale(LC_ALL, ".utf8");
+
   const size_t wlen = mbstowcs(nullptr, pathname, INT_MAX);
   if (wlen < 1 || wlen > /* MAX_PATH */ INT16_MAX)
     return ERROR_INVALID_NAME;

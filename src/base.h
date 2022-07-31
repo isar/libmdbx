@@ -53,6 +53,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <locale.h>
 
 #if (-6 & 5) || CHAR_BIT != 8 || UINT_MAX < 0xffffffff || ULONG_MAX % 0xFFFF
 #error                                                                         \
