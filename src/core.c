@@ -7979,7 +7979,15 @@ next_gc:;
   }
 
   /* Merge in descending sorted order */
+#if MDBX_ENABLE_PROFGC
+  const uint64_t merge_begin = osal_monotime();
+#endif /* MDBX_ENABLE_PROFGC */
   pnl_merge(txn->tw.relist, gc_pnl);
+#if MDBX_ENABLE_PROFGC
+  prof->pnl_merge.calls += 1;
+  prof->pnl_merge.volume += MDBX_PNL_GETSIZE(txn->tw.relist);
+  prof->pnl_merge.time += osal_monotime() - merge_begin;
+#endif /* MDBX_ENABLE_PROFGC */
   flags |= MDBX_ALLOC_SHOULD_SCAN;
   if (AUDIT_ENABLED()) {
     if (unlikely(!pnl_check(txn->tw.relist, txn->mt_next_pgno))) {
@@ -8150,7 +8158,7 @@ depleted_gc:
 no_gc:
   eASSERT(env, pgno == 0);
 #ifndef MDBX_ENABLE_BACKLOG_DEPLETED
-#define MDBX_ENABLE_BACKLOG_DEPLETED 0
+#define MDBX_ENABLE_BACKLOG_DEPLETED 1
 #endif /* MDBX_ENABLE_BACKLOG_DEPLETED*/
   if (MDBX_ENABLE_BACKLOG_DEPLETED &&
       unlikely(!(txn->mt_flags & MDBX_TXN_DRAINED_GC))) {
@@ -12022,6 +12030,16 @@ static void take_gcprof(MDBX_txn *txn, MDBX_commit_latency *latency) {
     latency->gc_prof.wipes = ptr->gc_prof.wipes;
     latency->gc_prof.flushes = ptr->gc_prof.flushes;
     latency->gc_prof.kicks = ptr->gc_prof.kicks;
+
+    latency->gc_prof.pnl_merge_work.time =
+        osal_monotime_to_16dot16(ptr->gc_prof.work.pnl_merge.time);
+    latency->gc_prof.pnl_merge_work.calls = ptr->gc_prof.work.pnl_merge.calls;
+    latency->gc_prof.pnl_merge_work.volume = ptr->gc_prof.work.pnl_merge.volume;
+    latency->gc_prof.pnl_merge_self.time =
+        osal_monotime_to_16dot16(ptr->gc_prof.self.pnl_merge.time);
+    latency->gc_prof.pnl_merge_self.calls = ptr->gc_prof.self.pnl_merge.calls;
+    latency->gc_prof.pnl_merge_self.volume = ptr->gc_prof.self.pnl_merge.volume;
+
     if (txn == env->me_txn0)
       memset(&ptr->gc_prof, 0, sizeof(ptr->gc_prof));
   } else
