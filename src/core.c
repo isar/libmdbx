@@ -14902,7 +14902,7 @@ int mdbx_cursor_get(MDBX_cursor *mc, MDBX_val *key, MDBX_val *data,
   if (unlikely(rc != MDBX_SUCCESS))
     return rc;
 
-  int (*mfunc)(MDBX_cursor * mc, MDBX_val * key, MDBX_val * data);
+  int (*mfunc)(MDBX_cursor *mc, MDBX_val *key, MDBX_val *data);
   switch (op) {
   case MDBX_GET_CURRENT: {
     if (unlikely(!(mc->mc_flags & C_INITIALIZED)))
@@ -15278,7 +15278,7 @@ static int mdbx_cursor_touch(MDBX_cursor *mc) {
 }
 
 int mdbx_cursor_put(MDBX_cursor *mc, const MDBX_val *key, MDBX_val *data,
-                    unsigned flags) {
+                    MDBX_put_flags_t flags) {
   MDBX_env *env;
   MDBX_page *sub_root = NULL;
   MDBX_val xdata, *rdata, dkey, olddata;
@@ -15807,7 +15807,7 @@ int mdbx_cursor_put(MDBX_cursor *mc, const MDBX_val *key, MDBX_val *data,
         } else {
           /* Data is on sub-page */
           fp = olddata.iov_base;
-          switch (flags) {
+          switch ((unsigned)flags) {
           default:
             if (!(mc->mc_db->md_flags & MDBX_DUPFIXED)) {
               offset = node_size(data, nullptr) + sizeof(indx_t);
@@ -19082,7 +19082,7 @@ done:
 }
 
 int mdbx_put(MDBX_txn *txn, MDBX_dbi dbi, const MDBX_val *key, MDBX_val *data,
-             unsigned flags) {
+             MDBX_put_flags_t flags) {
   int rc = check_txn_rw(txn, MDBX_TXN_BLOCKED);
   if (unlikely(rc != MDBX_SUCCESS))
     return rc;
@@ -19705,7 +19705,7 @@ __cold static int mdbx_env_copy_asis(MDBX_env *env, MDBX_txn *read_txn,
 }
 
 __cold int mdbx_env_copy2fd(MDBX_env *env, mdbx_filehandle_t fd,
-                            unsigned flags) {
+                            MDBX_copy_flags_t flags) {
   int rc = check_env(env, true);
   if (unlikely(rc != MDBX_SUCCESS))
     return rc;
@@ -21073,7 +21073,8 @@ mdbx_cleanup_dead_readers(MDBX_env *env, int rdt_locked, int *dead) {
   return rc;
 }
 
-__cold int mdbx_setup_debug(int loglevel, int flags, MDBX_debug_func *logger) {
+__cold int mdbx_setup_debug(MDBX_log_level_t loglevel, MDBX_debug_flags_t flags,
+                            MDBX_debug_func *logger) {
   const int rc = mdbx_runtime_flags | (mdbx_loglevel << 16);
 
   if (loglevel != MDBX_LOG_DONTCHANGE)
@@ -22550,11 +22551,11 @@ int64_t mdbx_int64_from_key(const MDBX_val v) {
                    UINT64_C(0x8000000000000000));
 }
 
-__cold MDBX_cmp_func *mdbx_get_keycmp(unsigned flags) {
+__cold MDBX_cmp_func *mdbx_get_keycmp(MDBX_db_flags_t flags) {
   return get_default_keycmp(flags);
 }
 
-__cold MDBX_cmp_func *mdbx_get_datacmp(unsigned flags) {
+__cold MDBX_cmp_func *mdbx_get_datacmp(MDBX_db_flags_t flags) {
   return get_default_datacmp(flags);
 }
 
