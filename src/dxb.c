@@ -1048,11 +1048,12 @@ __cold int dxb_setup(MDBX_env *env, const int lck_rc,
       for (int n = 0; n < NUM_METAS; ++n) {
         meta_t *const meta = METAPAGE(env, n);
         if (unlikely(unaligned_peek_u64(4, &meta->magic_and_version) !=
-                     MDBX_DATA_MAGIC)) {
+                     MDBX_DATA_MAGIC) ||
+            (meta->dxbid.x | meta->dxbid.y) == 0) {
           const txnid_t txnid = constmeta_txnid(meta);
           NOTICE("%s %s"
                  "meta[%u], txnid %" PRIaTXN,
-                 "updating db-format signature for",
+                 "updating db-format/guid signature for",
                  meta_is_steady(meta) ? "stead-" : "weak-", n, txnid);
           err = meta_override(env, n, txnid, meta);
           if (unlikely(err != MDBX_SUCCESS) &&

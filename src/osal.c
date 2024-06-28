@@ -3051,28 +3051,33 @@ bootid_parse_uuid(bin128_t *s, const void *p, const size_t n) {
   return false;
 }
 
+#if defined(__linux__) || defined(__gnu_linux__)
+__cold static bool proc_read_uuid(const char *path, bin128_t *target) {
+  const int fd = open(path, O_RDONLY | O_NOFOLLOW);
+  if (fd != -1) {
+    struct statfs fs;
+    char buf[42];
+    const ssize_t len =
+        (fstatfs(fd, &fs) == 0 && fs.f_type == /* procfs */ 0x9FA0)
+            ? read(fd, buf, sizeof(buf))
+            : -1;
+    const int err = close(fd);
+    assert(err == 0);
+    (void)err;
+    if (len > 0 && bootid_parse_uuid(target, buf, len))
+      return true;
+  }
+  return false;
+}
+#endif /* Linux */
+
 __cold static bin128_t osal_bootid(void) {
   bin128_t bin = {{0, 0}};
   bool got_machineid = false, got_boottime = false, got_bootseq = false;
 
 #if defined(__linux__) || defined(__gnu_linux__)
-  {
-    const int fd =
-        open("/proc/sys/kernel/random/boot_id", O_RDONLY | O_NOFOLLOW);
-    if (fd != -1) {
-      struct statfs fs;
-      char buf[42];
-      const ssize_t len =
-          (fstatfs(fd, &fs) == 0 && fs.f_type == /* procfs */ 0x9FA0)
-              ? read(fd, buf, sizeof(buf))
-              : -1;
-      const int err = close(fd);
-      assert(err == 0);
-      (void)err;
-      if (len > 0 && bootid_parse_uuid(&bin, buf, len))
-        return bin;
-    }
-  }
+  if (proc_read_uuid("/proc/sys/kernel/random/boot_id", &bin))
+    return bin;
 #endif /* Linux */
 
 #if defined(__APPLE__) || defined(__MACH__)
@@ -3473,6 +3478,96 @@ __cold int mdbx_get_sysraminfo(intptr_t *page_size, intptr_t *total_pages,
 
   return MDBX_SUCCESS;
 }
+
+/*----------------------------------------------------------------------------*/
+
+#ifdef __FreeBSD__
+#include <sys/uuid.h>
+#endif /* FreeBSD */
+
+#if __GLIBC_PREREQ(2, 25) || defined(__FreeBSD__) || defined(__NetBSD__) ||    \
+    defined(__BSD__) || defined(__bsdi__) || defined(__DragonFly__) ||         \
+    defined(__APPLE__) || __has_include(<sys/random.h>)
+#include <sys/random.h>
+#endif /* sys/random.h */
+
+MDBX_INTERNAL bin128_t osal_guid(const MDBX_env *env) {
+  struct {
+    uint64_t begin, end, cputime;
+    uintptr_t thread, pid;
+    const void *x, *y;
+    bin128_t (*z)(const MDBX_env *env);
+  } salt;
+
+  salt.begin = osal_monotime();
+  bin128_t bin = globals.bootid;
+
+#if defined(__linux__) || defined(__gnu_linux__)
+  if (proc_read_uuid("/proc/sys/kernel/random/uuid", &bin))
+    return bin;
+#endif /* Linux */
+
+#ifdef __FreeBSD__
+  STATIC_ASSERT(sizeof(bin) == sizeof(struct uuid));
+  if (uuidgen((struct uuid *)&bin, 1) == 0)
+    return bin;
+#endif /* FreeBSD */
+
+#if defined(_WIN32) || defined(_WIN64)
+  if (imports.CoCreateGuid && imports.CoCreateGuid(&bin) == 0)
+    return bin;
+
+  HCRYPTPROV hCryptProv = 0;
+  if (CryptAcquireContextW(&hCryptProv, nullptr, nullptr, PROV_RSA_FULL,
+                           CRYPT_VERIFYCONTEXT | CRYPT_SILENT)) {
+    const BOOL ok =
+        CryptGenRandom(hCryptProv, sizeof(bin), (unsigned char *)&bin);
+    CryptReleaseContext(hCryptProv, 0);
+    if (ok)
+      return bin;
+  }
+#elif defined(__IPHONE_OS_VERSION_MIN_REQUIRED) && defined(__IPHONE_8_0)
+#if __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_8_0
+  if (CCRandomGenerateBytes(&bin, sizeof(bin)) == kCCSuccess)
+    return bin;
+#endif /* iOS >= 8.x */
+#else
+  const int fd = open("/dev/urandom", O_RDONLY);
+  if (fd != -1) {
+    const ssize_t len = read(fd, &bin, sizeof(bin));
+    const int err = close(fd);
+    assert(err == 0);
+    (void)err;
+    if (len == sizeof(bin))
+      return bin;
+  }
+#if (__GLIBC_PREREQ(2, 25) || defined(__FreeBSD__) || defined(__NetBSD__) ||   \
+     defined(__BSD__) || defined(__bsdi__) || defined(__DragonFly__)) &&       \
+    !defined(__APPLE__) && !defined(__ANDROID_API__)
+  if (getrandom(&bin, sizeof(bin), 0) == sizeof(bin))
+    return bin;
+#elif defined(__OpenBSD__) || (defined(__sun) && defined(__SVR4)) ||           \
+    (defined(__MAC_OS_X_VERSION_MIN_REQUIRED) &&                               \
+     __MAC_OS_X_VERSION_MIN_REQUIRED >= 101200)
+  if (getentropy(&bin, sizeof(bin)) == 0)
+    return bin;
+#endif /* getrandom() / getentropy() */
+#endif /* !Windows */
+
+  bin = globals.bootid;
+  bootid_collect(&bin, env, sizeof(*env));
+  salt.thread = osal_thread_self();
+  salt.pid = osal_getpid();
+  salt.x = &salt;
+  salt.y = env;
+  salt.z = &osal_guid;
+  salt.cputime = osal_cputime(nullptr);
+  salt.end = osal_monotime();
+  bootid_collect(&bin, &salt, sizeof(salt));
+  return bin;
+}
+
+/*--------------------------------------------------------------------------*/
 
 void osal_ctor(void) {
 #if MDBX_HAVE_PWRITEV && defined(_SC_IOV_MAX)
