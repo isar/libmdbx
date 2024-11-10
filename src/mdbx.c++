@@ -15,10 +15,14 @@
 #endif /* MinGW */
 
 /* Workaround for MSVC' header `extern "C"` vs `std::` redefinition bug */
-#if defined(_MSC_VER) && defined(__SANITIZE_ADDRESS__) &&                      \
-    !defined(_DISABLE_VECTOR_ANNOTATION)
+#if defined(_MSC_VER)
+#if defined(__SANITIZE_ADDRESS__) && !defined(_DISABLE_VECTOR_ANNOTATION)
 #define _DISABLE_VECTOR_ANNOTATION
 #endif /* _DISABLE_VECTOR_ANNOTATION */
+#ifndef _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
+#define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
+#endif /* #define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING */
+#endif /* _MSC_VER */
 
 #include "../mdbx.h++"
 
