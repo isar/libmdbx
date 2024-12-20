@@ -23,6 +23,13 @@ void pnl_free(pnl_t pnl) {
     osal_free(pnl - 1);
 }
 
+pnl_t pnl_clone(const pnl_t src) {
+  pnl_t pl = pnl_alloc(MDBX_PNL_ALLOCLEN(src));
+  if (likely(pl))
+    memcpy(pl, src, MDBX_PNL_SIZEOF(src));
+  return pl;
+}
+
 void pnl_shrink(pnl_t __restrict *__restrict ppnl) {
   assert(pnl_bytes2size(pnl_size2bytes(MDBX_PNL_INITIAL)) >= MDBX_PNL_INITIAL &&
          pnl_bytes2size(pnl_size2bytes(MDBX_PNL_INITIAL)) < MDBX_PNL_INITIAL * 3 / 2);
@@ -233,4 +240,15 @@ __hot __noinline size_t pnl_search_nochk(const pnl_t pnl, pgno_t pgno) {
   if (it != end)
     assert(!MDBX_PNL_ORDERED(it[0], pgno));
   return it - begin + 1;
+}
+
+size_t pnl_maxspan(const pnl_t pnl) {
+  size_t span = MDBX_PNL_GETSIZE(pnl);
+  const pgno_t *scan = MDBX_PNL_BEGIN(pnl);
+  const pgno_t last = MDBX_PNL_LAST(pnl);
+  while (span > 1 && (MDBX_PNL_ASCENDING ? *scan + span != last : *scan != last + span)) {
+    span -= 1;
+    scan += 1;
+  }
+  return span;
 }
