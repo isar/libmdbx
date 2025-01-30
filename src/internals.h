@@ -46,6 +46,7 @@ typedef struct bind_reader_slot_result {
 
 #include "atomics-ops.h"
 #include "proto.h"
+#include "rkl.h"
 #include "txl.h"
 #include "unaligned.h"
 #if defined(_WIN32) || defined(_WIN64)
