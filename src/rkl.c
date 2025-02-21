@@ -370,19 +370,18 @@ txnid_t rkl_highest(const rkl_t *rkl) {
 void rkl_iterator_init(rkl_iterator_t *iter, const rkl_t *rkl, const bool reverse) {
   iter->pos = reverse ? rkl_len(rkl) : 0;
   iter->solid_offset = 0;
-  if (!solid_empty(rkl) && rkl->list_length && rkl->solid_begin > rkl->list[0] &&
-      rkl->solid_end < rkl->list[rkl->list_length - 1]) {
-    /* непрерывный интервал "плавает" внутри списка, т.е. находится между какими-то соседними значениями */
+  if (!solid_empty(rkl) && rkl->list_length) {
     const txnid_t *it = rkl_bsearch(rkl->list, rkl->list_length, rkl->solid_begin);
     const txnid_t *const end = rkl->list + rkl->list_length;
-    assert(it > rkl->list && it < end && *it > rkl->solid_begin);
+    assert(it >= rkl->list && it <= end && (it == end || *it > rkl->solid_begin));
     iter->solid_offset = it - rkl->list;
   }
 }
 
 txnid_t rkl_iterator_turn(rkl_iterator_t *iter, const rkl_t *rkl, const bool reverse) {
-  size_t pos = iter->pos - !!reverse;
-  if (pos >= rkl_len(rkl))
+  assert((unsigned)reverse == (unsigned)!!reverse);
+  size_t pos = iter->pos - reverse;
+  if (unlikely(pos >= rkl_len(rkl)))
     return 0;
 
   iter->pos = pos + !reverse;
@@ -390,33 +389,12 @@ txnid_t rkl_iterator_turn(rkl_iterator_t *iter, const rkl_t *rkl, const bool rev
 
   const size_t solid_len = rkl->solid_end - rkl->solid_begin;
   if (rkl->list_length) {
-    if (solid_len) {
-      if (rkl->solid_end < rkl->list[0]) {
-        if (pos < solid_len)
-          return rkl->solid_begin + pos;
-        pos -= solid_len;
-        assert(pos < rkl->list_length);
-        return rkl->list[pos];
-      } else if (rkl->solid_begin > rkl->list[rkl->list_length - 1]) {
-        if (pos < rkl->list_length)
-          return rkl->list[pos];
-        pos -= rkl->list_length;
-        assert(pos < solid_len);
-        return rkl->solid_begin + pos;
-      } else {
-        assert(rkl->solid_begin > rkl->list[0] && rkl->solid_end < rkl->list[rkl->list_length - 1]);
-        assert(iter->solid_offset > 0 && iter->solid_offset < rkl->list_length);
-        /* непрерывный интервал "плавает" внутри списка, т.е. находится между какими-то соседними значениями */
-        if (pos < iter->solid_offset)
-          return rkl->list[pos];
-        else if (pos < iter->solid_offset + solid_len)
-          return rkl->solid_begin + pos - iter->solid_offset;
-        else
-          return rkl->list[pos - solid_len];
-      }
-    }
-    assert(pos < rkl->list_length);
-    return rkl->list[pos];
+    if (pos < iter->solid_offset)
+      return rkl->list[pos];
+    else if (pos < iter->solid_offset + solid_len)
+      return rkl->solid_begin + pos - iter->solid_offset;
+    else
+      return rkl->list[pos - solid_len];
   }
   assert(pos < solid_len);
   return rkl->solid_begin + pos;
