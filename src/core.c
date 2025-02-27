@@ -2761,12 +2761,11 @@ static __always_inline size_t dpl_size2bytes(ptrdiff_t size) {
 
 static __always_inline size_t dpl_bytes2size(const ptrdiff_t bytes) {
   size_t size = (bytes - sizeof(MDBX_dpl)) / sizeof(MDBX_dp);
-  assert(size > CURSOR_STACK + MDBX_DPL_RESERVE_GAP &&
-         size <= MDBX_PGL_LIMIT + MDBX_PNL_GRANULATE);
   size -= MDBX_DPL_RESERVE_GAP;
 #if MDBX_DPL_PREALLOC_FOR_RADIXSORT
   size >>= 1;
 #endif /* MDBX_DPL_PREALLOC_FOR_RADIXSORT */
+  assert(size > CURSOR_STACK && size <= MDBX_PGL_LIMIT + MDBX_PNL_GRANULATE);
   return size;
 }
 
