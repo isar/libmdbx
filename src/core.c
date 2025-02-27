@@ -16520,7 +16520,8 @@ cursor_set(MDBX_cursor *mc, MDBX_val *key, MDBX_val *data, MDBX_cursor_op op) {
   struct cursor_set_result ret;
   ret.exact = false;
   if (unlikely(key->iov_len < mc->mc_dbx->md_klen_min ||
-               key->iov_len > mc->mc_dbx->md_klen_max)) {
+               (key->iov_len > mc->mc_dbx->md_klen_max &&
+                (mc->mc_dbx->md_klen_min == mc->mc_dbx->md_klen_max || MDBX_DEBUG || MDBX_FORCE_ASSERTIONS)))) {
     cASSERT(mc, !"Invalid key-size");
     ret.err = MDBX_BAD_VALSIZE;
     return ret;
