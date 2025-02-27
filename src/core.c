@@ -10815,10 +10815,10 @@ retry:
           if (unlikely(ctx->rid <= MIN_TXNID)) {
             if (unlikely(MDBX_PNL_GETSIZE(txn->tw.lifo_reclaimed) <=
                          ctx->reused_slot)) {
-              NOTICE("** restart: reserve depleted (reused_gc_slot %zu >= "
-                     "lifo_reclaimed %zu" PRIaTXN,
-                     ctx->reused_slot,
-                     MDBX_PNL_GETSIZE(txn->tw.lifo_reclaimed));
+              VERBOSE("** restart: reserve depleted (reused_gc_slot %zu >= "
+                      "lifo_reclaimed %zu" PRIaTXN,
+                      ctx->reused_slot,
+                      MDBX_PNL_GETSIZE(txn->tw.lifo_reclaimed));
               goto retry;
             }
             break;
@@ -11053,7 +11053,7 @@ retry:
         tASSERT(txn, ctx->lifo == 0);
         fill_gc_id = unaligned_peek_u64(4, key.iov_base);
         if (ctx->filled_slot-- == 0 || fill_gc_id > txn->tw.last_reclaimed) {
-          NOTICE(
+          VERBOSE(
               "** restart: reserve depleted (filled_slot %zu, fill_id %" PRIaTXN
               " > last_reclaimed %" PRIaTXN,
               ctx->filled_slot, fill_gc_id, txn->tw.last_reclaimed);
@@ -11062,9 +11062,9 @@ retry:
       } else {
         tASSERT(txn, ctx->lifo != 0);
         if (++ctx->filled_slot > MDBX_PNL_GETSIZE(txn->tw.lifo_reclaimed)) {
-          NOTICE("** restart: reserve depleted (filled_gc_slot %zu > "
-                 "lifo_reclaimed %zu" PRIaTXN,
-                 ctx->filled_slot, MDBX_PNL_GETSIZE(txn->tw.lifo_reclaimed));
+          VERBOSE("** restart: reserve depleted (filled_gc_slot %zu > "
+                  "lifo_reclaimed %zu" PRIaTXN,
+                  ctx->filled_slot, MDBX_PNL_GETSIZE(txn->tw.lifo_reclaimed));
           goto retry;
         }
         fill_gc_id = txn->tw.lifo_reclaimed[ctx->filled_slot];
