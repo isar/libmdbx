@@ -255,6 +255,11 @@ MDBX_cursor *cursor_eot(MDBX_cursor *mc, MDBX_txn *txn, const bool merge) {
     cursor_drown((cursor_couple_t *)mc);
     mc->next = mc;
     mc->signature = cur_signature_ready4dispose /* Cursor may be reused */;
+    mc->txn = nullptr;
+    mc->tree = nullptr;
+    /* сохраняем clc-указатель, так он используется для вычисления dbi в mdbx_cursor_renew().
+     * mc->clc = nullptr; */
+    mc->dbi_state = nullptr;
   }
   return next;
 }
