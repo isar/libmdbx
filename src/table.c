@@ -19,7 +19,6 @@ int tbl_setup(const MDBX_env *env, volatile kvx_t *const kvx, const tree_t *cons
       return MDBX_CORRUPTED;
     }
     v_lmin = v_lmax = db->dupfix_size;
-    eASSERT(env, v_lmin <= 8);
   }
 
   kvx->clc.k.lmin = keysize_min(db->flags);
@@ -35,8 +34,6 @@ int tbl_setup(const MDBX_env *env, volatile kvx_t *const kvx, const tree_t *cons
 
   eASSERT(env, kvx->clc.k.lmax >= kvx->clc.k.lmin);
   eASSERT(env, kvx->clc.v.lmax >= kvx->clc.v.lmin);
-  cASSERT(env, kvx->clc.k.lmin <= 8);
-  cASSERT(env, kvx->clc.v.lmin <= 8);
   return MDBX_SUCCESS;
 }
 
