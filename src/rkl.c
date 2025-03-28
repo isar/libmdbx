@@ -402,7 +402,9 @@ txnid_t rkl_iterator_turn(rkl_iterator_t *iter, const rkl_t *rkl, const bool rev
 }
 
 #if 1
-#define DEBUG_HOLE(hole) do {} while(0)
+#define DEBUG_HOLE(hole)                                                                                               \
+  do {                                                                                                                 \
+  } while (0)
 #else
 #define DEBUG_HOLE(hole)                                                                                               \
   do {                                                                                                                 \
