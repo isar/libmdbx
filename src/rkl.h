@@ -66,3 +66,9 @@ MDBX_MAYBE_UNUSED MDBX_INTERNAL __must_check_result txnid_t rkl_iterator_turn(rk
 MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION MDBX_INTERNAL size_t rkl_iterator_left(rkl_iterator_t *iter,
                                                                                     const rkl_t *rkl,
                                                                                     const bool reverse);
+typedef struct MDBX_rkl_hole {
+  txnid_t begin;
+  txnid_t length;
+} rkl_hole_t;
+MDBX_MAYBE_UNUSED MDBX_INTERNAL __must_check_result rkl_hole_t rkl_iterator_hole(rkl_iterator_t *iter, const rkl_t *rkl,
+                                                                                 const bool reverse);
