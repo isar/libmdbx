@@ -157,13 +157,13 @@ __extern_C void __assert2(const char *file, int line, const char *function,
   __assert2(file, line, function, assertion)
 
 #elif defined(__UCLIBC__)
-__extern_C void __assert(const char *, const char *, unsigned int, const char *)
+MDBX_NORETURN __extern_C void __assert(const char *, const char *, unsigned int, const char *)
 #ifdef __THROW
     __THROW
 #else
     __nothrow
 #endif /* __THROW */
-    MDBX_NORETURN;
+    ;
 #define __assert_fail(assertion, file, line, function)                         \
   __assert(assertion, file, line, function)
 
@@ -171,14 +171,14 @@ __extern_C void __assert(const char *, const char *, unsigned int, const char *)
     /* workaround for avoid musl libc wrong prototype */ (                     \
         defined(__GLIBC__) || defined(__GNU_LIBRARY__))
 /* Prototype should match libc runtime. ISO POSIX (2003) & LSB 1.x-3.x */
-__extern_C void __assert_fail(const char *assertion, const char *file,
+MDBX_NORETURN __extern_C void __assert_fail(const char *assertion, const char *file,
                               unsigned line, const char *function)
 #ifdef __THROW
     __THROW
 #else
     __nothrow
 #endif /* __THROW */
-    MDBX_NORETURN;
+    ;
 
 #elif defined(__APPLE__) || defined(__MACH__)
 __extern_C void __assert_rtn(const char *function, const char *file, int line,
@@ -214,12 +214,11 @@ __extern_C __dead void __assert13(const char *file, int line,
   __assert13(file, line, function, assertion)
 #elif defined(__FreeBSD__) || defined(__BSD__) || defined(__bsdi__) ||         \
     defined(__DragonFly__)
-__extern_C void __assert(const char *function, const char *file, int line,
+MDBX_NORETURN __extern_C void __assert(const char *function, const char *file, int line,
                          const char *assertion) /* __nothrow */
 #ifdef __dead2
     __dead2
 #else
-    MDBX_NORETURN
 #endif /* __dead2 */
 #ifdef __disable_tail_calls
     __disable_tail_calls
@@ -3034,7 +3033,7 @@ static bool check_uuid(bin128_t uuid) {
   return (hw >> 6) == 1;
 }
 
-__cold MDBX_MAYBE_UNUSED static bool
+MDBX_MAYBE_UNUSED __cold static bool
 bootid_parse_uuid(bin128_t *s, const void *p, const size_t n) {
   if (n > 31) {
     unsigned bits = 0;
