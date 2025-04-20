@@ -157,7 +157,8 @@ __extern_C void __assert2(const char *file, int line, const char *function,
   __assert2(file, line, function, assertion)
 
 #elif defined(__UCLIBC__)
-MDBX_NORETURN __extern_C void __assert(const char *, const char *, unsigned int, const char *)
+MDBX_NORETURN __extern_C void __assert(const char *, const char *, unsigned int,
+                                       const char *)
 #ifdef __THROW
     __THROW
 #else
@@ -171,8 +172,9 @@ MDBX_NORETURN __extern_C void __assert(const char *, const char *, unsigned int,
     /* workaround for avoid musl libc wrong prototype */ (                     \
         defined(__GLIBC__) || defined(__GNU_LIBRARY__))
 /* Prototype should match libc runtime. ISO POSIX (2003) & LSB 1.x-3.x */
-MDBX_NORETURN __extern_C void __assert_fail(const char *assertion, const char *file,
-                              unsigned line, const char *function)
+MDBX_NORETURN __extern_C void __assert_fail(const char *assertion,
+                                            const char *file, unsigned line,
+                                            const char *function)
 #ifdef __THROW
     __THROW
 #else
@@ -214,8 +216,9 @@ __extern_C __dead void __assert13(const char *file, int line,
   __assert13(file, line, function, assertion)
 #elif defined(__FreeBSD__) || defined(__BSD__) || defined(__bsdi__) ||         \
     defined(__DragonFly__)
-MDBX_NORETURN __extern_C void __assert(const char *function, const char *file, int line,
-                         const char *assertion) /* __nothrow */
+MDBX_NORETURN __extern_C void __assert(const char *function, const char *file,
+                                       int line,
+                                       const char *assertion) /* __nothrow */
 #ifdef __dead2
     __dead2
 #else

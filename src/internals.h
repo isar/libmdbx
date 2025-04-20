@@ -1304,7 +1304,7 @@ struct MDBX_cursor {
 #define C_DEL 0x08         /* last op was a cursor_del */
 #define C_UNTRACK 0x10     /* Un-track cursor when closing */
 #define C_GCU                                                                  \
-  0x20 /* Происходит подготовка к обновлению GC, поэтому                     \
+  0x20 /* Происходит подготовка к обновлению GC, поэтому \
         * можно брать страницы из GC даже для FREE_DBI */
   uint8_t mc_flags;
 

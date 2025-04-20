@@ -3232,10 +3232,8 @@ static int cursor_touch(MDBX_cursor *const mc, const MDBX_val *key,
                         const MDBX_val *data);
 
 #define MDBX_END_NAMES                                                         \
-  {                                                                            \
-    "committed", "empty-commit", "abort", "reset", "reset-tmp", "fail-begin",  \
-        "fail-beginchild"                                                      \
-  }
+  {"committed", "empty-commit", "abort",          "reset",                     \
+   "reset-tmp", "fail-begin",   "fail-beginchild"}
 enum {
   /* txn_end operation number, for logging */
   MDBX_END_COMMITTED,
@@ -6952,8 +6950,8 @@ __hot static pgno_t relist_get_single(MDBX_txn *txn) {
    * может ускорить. Однако, последовательности в среднем достаточно редки.
    * Поэтому для эффективности требуется аккумулировать и поддерживать в ОЗУ
    * огромные списки страниц, а затем сохранять их обратно в БД. Текущий формат
-   * БД (без сжатых битовых карт) для этого крайне не удачен. Поэтому эта тактика не
-   * имеет шансов быть успешной без смены формата БД (Mithril).
+   * БД (без сжатых битовых карт) для этого крайне не удачен. Поэтому эта
+   * тактика не имеет шансов быть успешной без смены формата БД (Mithril).
    *
    * 3. Стараться экономить последовательности страниц. Это позволяет избегать
    * лишнего чтения/поиска в GC при более-менее постоянном размещении и/или
@@ -9303,8 +9301,10 @@ int mdbx_txn_begin_ex(MDBX_env *env, MDBX_txn *parent, MDBX_txn_flags_t flags,
     rc = check_txn_rw(parent,
                       MDBX_TXN_RDONLY | MDBX_WRITEMAP | MDBX_TXN_BLOCKED);
     if (unlikely(rc != MDBX_SUCCESS)) {
-      if (rc == MDBX_BAD_TXN && (parent->mt_flags & (MDBX_TXN_RDONLY | MDBX_TXN_BLOCKED)) == 0) {
-        ERROR("%s mode is incompatible with nested transactions", "MDBX_WRITEMAP");
+      if (rc == MDBX_BAD_TXN &&
+          (parent->mt_flags & (MDBX_TXN_RDONLY | MDBX_TXN_BLOCKED)) == 0) {
+        ERROR("%s mode is incompatible with nested transactions",
+              "MDBX_WRITEMAP");
         rc = MDBX_INCOMPATIBLE;
       }
       return rc;
@@ -16526,7 +16526,8 @@ cursor_set(MDBX_cursor *mc, MDBX_val *key, MDBX_val *data, MDBX_cursor_op op) {
   ret.exact = false;
   if (unlikely(key->iov_len < mc->mc_dbx->md_klen_min ||
                (key->iov_len > mc->mc_dbx->md_klen_max &&
-                (mc->mc_dbx->md_klen_min == mc->mc_dbx->md_klen_max || MDBX_DEBUG || MDBX_FORCE_ASSERTIONS)))) {
+                (mc->mc_dbx->md_klen_min == mc->mc_dbx->md_klen_max ||
+                 MDBX_DEBUG || MDBX_FORCE_ASSERTIONS)))) {
     cASSERT(mc, !"Invalid key-size");
     ret.err = MDBX_BAD_VALSIZE;
     return ret;
