@@ -7,6 +7,17 @@
 
 #include "internals.h"
 
+static void yield(void) {
+#if defined(_POSIX_PRIORITY_SCHEDULING) && _POSIX_PRIORITY_SCHEDULING > 0
+  sched_yield();
+#elif _BSD_SOURCE || _XOPEN_SOURCE >= 500 || _DEFAULT_SOURCE
+  usleep(42);
+#else
+  const struct timespec ts = {.tv_nsec = 42, .tv_sec = 0};
+  nanosleep(&ts, nullptr);
+#endif
+}
+
 #if MDBX_LOCKING == MDBX_LOCKING_SYSV
 #include <sys/sem.h>
 #endif /* MDBX_LOCKING == MDBX_LOCKING_SYSV */
@@ -283,21 +294,19 @@ __cold MDBX_INTERNAL int lck_seize(MDBX_env *env) {
   if (env->lck_mmap.fd == INVALID_HANDLE_VALUE) {
     /* LY: without-lck mode (e.g. exclusive or on read-only filesystem) */
     rc = lck_op(env->lazy_fd, op_setlk, (env->flags & MDBX_RDONLY) ? F_RDLCK : F_WRLCK, 0, OFF_T_MAX);
-    if (rc != MDBX_SUCCESS) {
+    if (unlikely(rc != MDBX_SUCCESS)) {
       ERROR("%s, err %u", "without-lck", rc);
       eASSERT(env, MDBX_IS_ERROR(rc));
       return rc;
     }
     return MDBX_RESULT_TRUE /* Done: return with exclusive locking. */;
   }
-#if defined(_POSIX_PRIORITY_SCHEDULING) && _POSIX_PRIORITY_SCHEDULING > 0
-  sched_yield();
-#endif
 
 retry:
+  yield();
   if (rc == MDBX_RESULT_TRUE) {
     rc = lck_op(env->lck_mmap.fd, op_setlk, F_UNLCK, 0, 1);
-    if (rc != MDBX_SUCCESS) {
+    if (unlikely(rc != MDBX_SUCCESS)) {
       ERROR("%s, err %u", "unlock-before-retry", rc);
       eASSERT(env, MDBX_IS_ERROR(rc));
       return rc;
@@ -306,29 +315,29 @@ retry:
 
   /* Firstly try to get exclusive locking.  */
   rc = lck_op(env->lck_mmap.fd, op_setlk, F_WRLCK, 0, 1);
-  if (rc == MDBX_SUCCESS) {
+  if (likely(rc == MDBX_SUCCESS)) {
     rc = check_fstat(env);
     if (MDBX_IS_ERROR(rc))
       return rc;
 
   continue_dxb_exclusive:
     rc = lck_op(env->lazy_fd, op_setlk, (env->flags & MDBX_RDONLY) ? F_RDLCK : F_WRLCK, 0, OFF_T_MAX);
-    if (rc == MDBX_SUCCESS)
+    if (likely(rc == MDBX_SUCCESS))
       return MDBX_RESULT_TRUE /* Done: return with exclusive locking. */;
 
     int err = check_fstat(env);
-    if (MDBX_IS_ERROR(err))
+    if (unlikely(MDBX_IS_ERROR(err)))
       return err;
 
     /* the cause may be a collision with POSIX's file-lock recovery. */
-    if (!(rc == EAGAIN || rc == EACCES || rc == EBUSY || rc == EWOULDBLOCK || rc == EDEADLK)) {
+    if (unlikely(!(rc == EAGAIN || rc == EACCES || rc == EBUSY || rc == EWOULDBLOCK || rc == EDEADLK))) {
       ERROR("%s, err %u", "dxb-exclusive", rc);
       eASSERT(env, MDBX_IS_ERROR(rc));
       return rc;
     }
 
     /* Fallback to lck-shared */
-  } else if (!(rc == EAGAIN || rc == EACCES || rc == EBUSY || rc == EWOULDBLOCK || rc == EDEADLK)) {
+  } else if (unlikely(!(rc == EAGAIN || rc == EACCES || rc == EBUSY || rc == EWOULDBLOCK || rc == EDEADLK))) {
     ERROR("%s, err %u", "try-exclusive", rc);
     eASSERT(env, MDBX_IS_ERROR(rc));
     return rc;
@@ -345,26 +354,26 @@ retry:
   /* Here may be await during transient processes, for instance until another
    * competing process doesn't call lck_downgrade(). */
   rc = lck_op(env->lck_mmap.fd, op_setlkw, F_RDLCK, 0, 1);
-  if (rc != MDBX_SUCCESS) {
+  if (unlikely(rc != MDBX_SUCCESS)) {
     ERROR("%s, err %u", "try-shared", rc);
     eASSERT(env, MDBX_IS_ERROR(rc));
     return rc;
   }
 
   rc = check_fstat(env);
-  if (rc == MDBX_RESULT_TRUE)
+  if (unlikely(rc == MDBX_RESULT_TRUE))
     goto retry;
-  if (rc != MDBX_SUCCESS) {
+  if (unlikely(rc != MDBX_SUCCESS)) {
     ERROR("%s, err %u", "lck_fstat", rc);
     return rc;
   }
 
   /* got shared, retry exclusive */
   rc = lck_op(env->lck_mmap.fd, op_setlk, F_WRLCK, 0, 1);
-  if (rc == MDBX_SUCCESS)
+  if (likely(rc == MDBX_SUCCESS))
     goto continue_dxb_exclusive;
 
-  if (!(rc == EAGAIN || rc == EACCES || rc == EBUSY || rc == EWOULDBLOCK || rc == EDEADLK)) {
+  if (unlikely(!(rc == EAGAIN || rc == EACCES || rc == EBUSY || rc == EWOULDBLOCK || rc == EDEADLK))) {
     ERROR("%s, err %u", "try-exclusive", rc);
     eASSERT(env, MDBX_IS_ERROR(rc));
     return rc;
@@ -372,10 +381,26 @@ retry:
 
   /* Lock against another process operating in without-lck or exclusive mode. */
   rc = lck_op(env->lazy_fd, op_setlk, (env->flags & MDBX_RDONLY) ? F_RDLCK : F_WRLCK, env->pid, 1);
-  if (rc != MDBX_SUCCESS) {
+  if (unlikely(rc == EAGAIN)) {
+    yield();
+    rc = lck_op(env->lazy_fd, op_setlk, (env->flags & MDBX_RDONLY) ? F_RDLCK : F_WRLCK, env->pid, 1);
+    if (unlikely(rc == EAGAIN)) {
+      yield();
+      rc = lck_op(env->lazy_fd, op_setlk, (env->flags & MDBX_RDONLY) ? F_RDLCK : F_WRLCK, env->pid, 1);
+      if (unlikely(rc == EAGAIN)) {
+        yield();
+        rc = lck_op(env->lazy_fd, op_setlk, (env->flags & MDBX_RDONLY) ? F_RDLCK : F_WRLCK, env->pid, 1);
+        if (unlikely(rc == EAGAIN)) {
+          yield();
+          rc = lck_op(env->lazy_fd, op_setlk, (env->flags & MDBX_RDONLY) ? F_RDLCK : F_WRLCK, env->pid, 1);
+        }
+      }
+    }
+  }
+  if (unlikely(rc != MDBX_SUCCESS)) {
     ERROR("%s, err %u", "lock-against-without-lck", rc);
     eASSERT(env, MDBX_IS_ERROR(rc));
-    return rc;
+    return (rc == EAGAIN) ? MDBX_BUSY : rc;
   }
 
   /* Done: return with shared locking. */
