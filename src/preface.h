@@ -433,11 +433,6 @@ __extern_C key_t ftok(const char *, int);
 #if __ANDROID_API__ >= 21
 #include <sys/sendfile.h>
 #endif
-#if defined(_FILE_OFFSET_BITS) && _FILE_OFFSET_BITS != MDBX_WORDBITS
-#error "_FILE_OFFSET_BITS != MDBX_WORDBITS" (_FILE_OFFSET_BITS != MDBX_WORDBITS)
-#elif defined(__FILE_OFFSET_BITS) && __FILE_OFFSET_BITS != MDBX_WORDBITS
-#error "__FILE_OFFSET_BITS != MDBX_WORDBITS" (__FILE_OFFSET_BITS != MDBX_WORDBITS)
-#endif
 #endif /* Android */
 
 #if defined(HAVE_SYS_STAT_H) || __has_include(<sys/stat.h>)
