@@ -4,9 +4,18 @@ ChangeLog
 English version [by liar Google](https://libmdbx-dqdkfa-ru.translate.goog/md__change_log.html?_x_tr_sl=ru&_x_tr_tl=en)
 and [by Yandex](https://translated.turbopages.org/proxy_u/ru-en.en/https/libmdbx.dqdkfa.ru/md__change_log.html).
 
-## v0.13.7 в процессе накопления изменений, выпуск запланирован на конец мая.
+
+## v0.13.7 в процессе накопления изменений.
 
 Поддерживающий выпуск стабильной ветки с исправлением обнаруженных ошибок и устранением недочётов.
+
+Благодарности:
+
+ - [Erigon](https://erigon.tech/) за спонсорство.
+
+Исправления:
+
+ - Исправлена ошибка сборки для платформы Android при явном определении `_FILE_OFFSET_BITS`.
 
 
 --------------------------------------------------------------------------------
