@@ -872,10 +872,8 @@ pgr_t gc_alloc_ex(const MDBX_cursor *const mc, const size_t num, uint8_t flags) 
 
   //---------------------------------------------------------------------------
 
-  if (unlikely(!is_gc_usable(txn, mc, flags))) {
-    eASSERT(env, (txn->flags & txn_gc_drained) || num > 1);
+  if (unlikely(!is_gc_usable(txn, mc, flags)))
     goto no_gc;
-  }
 
   eASSERT(env, (flags & (ALLOC_COALESCE | ALLOC_LIFO | ALLOC_SHOULD_SCAN)) == 0);
   flags += (env->flags & MDBX_LIFORECLAIM) ? ALLOC_LIFO : 0;
