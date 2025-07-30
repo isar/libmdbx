@@ -4,10 +4,16 @@ ChangeLog
 English version [by liar Google](https://libmdbx-dqdkfa-ru.translate.goog/md__change_log.html?_x_tr_sl=ru&_x_tr_tl=en)
 and [by Yandex](https://translated.turbopages.org/proxy_u/ru-en.en/https/libmdbx.dqdkfa.ru/md__change_log.html).
 
+The source code is availale on [Gitflic](https://gitflic.ru/project/erthink/libmdbx) and mirrors on [abf.io](https://abf.io/erthink/libmdbx), [hub.mos.ru](https://hub.mos.ru/leo/libmdbx) and [Github](https://github.com/erthink/libmdbx).
+Please use the `stable` branch or the latest release for production environment through stagging, but the `master` branch for development a derivative projects.
+Donations are welcome to ETH `0xD104d8f8B2dC312aaD74899F83EBf3EEBDC1EA3A`.
+Всё будет хорошо!
 
-## v0.13.7 запланирован на конец июля 2025.
 
-Поддерживающий выпуск стабильной ветки с исправлением обнаруженных ошибок и устранением недочётов.
+## v0.13.7 "Дружба" (Friendship) от 2025-07-30.
+
+Поддерживающий выпуск стабильной ветки с исправлением обнаруженных ошибок и устранением недочётов,
+в [международный день дружбы](https://www.un.org/ru/observances/friendship-day).
 
 Благодарности:
 
