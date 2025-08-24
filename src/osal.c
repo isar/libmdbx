@@ -1592,6 +1592,7 @@ MDBX_INTERNAL int osal_is_pipe(mdbx_filehandle_t fd) {
 #endif
 }
 
+/* truncate file: just set the length of a file */
 MDBX_INTERNAL int osal_ftruncate(mdbx_filehandle_t fd, uint64_t length) {
 #if defined(_WIN32) || defined(_WIN64)
   if (imports.SetFileInformationByHandle) {
@@ -1609,6 +1610,29 @@ MDBX_INTERNAL int osal_ftruncate(mdbx_filehandle_t fd, uint64_t length) {
   STATIC_ASSERT_MSG(sizeof(off_t) >= sizeof(size_t), "libmdbx requires 64-bit file I/O on 64-bit systems");
   return ftruncate(fd, length) == 0 ? MDBX_SUCCESS : errno;
 #endif
+}
+
+/* extend file: set the length of a file AND ensure the space has been allocated */
+MDBX_INTERNAL int osal_fallocate(mdbx_filehandle_t fd, uint64_t length) {
+  assert(length > 0);
+  int err = MDBX_RESULT_TRUE;
+#if (defined(__linux__) || defined(__gnu_linux__)) &&                                                                  \
+    ((defined(_GNU_SOURCE) && __GLIBC_PREREQ(2, 10)) || (defined(__ANDROID_API__) && __ANDROID_API__ >= 21))
+  err = fallocate(fd, 0, 0, length) ? ignore_enosys_and_eremote(errno) : MDBX_SUCCESS;
+#elif defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L && !defined(__APPLE__)
+  err = posix_fallocate(fd, 0, length) ? ignore_enosys_and_eremote(errno) : MDBX_SUCCESS;
+#elif defined(__APPLE__)
+  fstore_t store = {F_ALLOCATEALL, F_PEOFPOSMODE, 0, length, 0};
+  if (fcntl(fd, F_PREALLOCATE, &store))
+    err = ignore_enosys_and_eremote(errno);
+#endif /* Apple */
+#if !defined(_WIN32) && !defined(_WIN64)
+  /* Workaround for testing: ignore ENOSPC for TMPFS/RAMFS.
+   * This is insignificant for production, but it helps in some tests using /dev/shm inside docker/containers. */
+  if (err == ENOSPC && osal_check_fs_incore(fd) == MDBX_RESULT_TRUE)
+    err = MDBX_RESULT_TRUE;
+#endif /* !Windows */
+  return (err == MDBX_RESULT_TRUE) ? osal_ftruncate(fd, length) : err;
 }
 
 MDBX_INTERNAL int osal_fseek(mdbx_filehandle_t fd, uint64_t pos) {
@@ -2061,8 +2085,8 @@ MDBX_INTERNAL int osal_mmap(const int flags, osal_mmap_t *map, size_t size, cons
   if (unlikely(err != MDBX_SUCCESS))
     return err;
 
-  if ((flags & MDBX_RDONLY) == 0 && (options & MMAP_OPTION_TRUNCATE) != 0) {
-    err = osal_ftruncate(map->fd, size);
+  if ((flags & MDBX_RDONLY) == 0 && (options & MMAP_OPTION_SETLENGTH) != 0) {
+    err = osal_fallocate(map->fd, size);
     VERBOSE("ftruncate %zu, err %d", size, err);
     if (err != MDBX_SUCCESS)
       return err;
@@ -2308,7 +2332,7 @@ retry_file_and_section:
   }
 
   if ((flags & MDBX_RDONLY) == 0 && map->filesize != size) {
-    err = osal_ftruncate(map->fd, size);
+    err = osal_fallocate(map->fd, size);
     if (err == MDBX_SUCCESS)
       map->filesize = size;
     /* ignore error, because Windows unable shrink file
@@ -2386,10 +2410,15 @@ retry_mapview:;
       rc = MDBX_EPERM;
     map->current = (map->filesize > limit) ? limit : (size_t)map->filesize;
   } else {
-    if (size > map->filesize || (size < map->filesize && (flags & txn_shrink_allowed))) {
-      rc = osal_ftruncate(map->fd, size);
-      VERBOSE("ftruncate %zu, err %d", size, rc);
-      if (rc != MDBX_SUCCESS)
+    if (map->filesize != size) {
+      if (size > map->filesize) {
+        rc = osal_fallocate(map->fd, size);
+        VERBOSE("f%s-%s %zu, err %d", "allocate", "extend", size, rc);
+      } else if (flags & txn_shrink_allowed) {
+        rc = osal_ftruncate(map->fd, size);
+        VERBOSE("f%s-%s %zu, err %d", "truncate", "shrink", size, rc);
+      }
+      if (unlikely(rc != MDBX_SUCCESS))
         return rc;
       map->filesize = size;
     }
