@@ -86,6 +86,19 @@ MDBX_NOTHROW_PURE_FUNCTION pgno_t pgno_align2sp_pgno(const MDBX_env *env, size_t
   return bytes2pgno(env, pgno_align2sp_bytes(env, pgno));
 }
 
+MDBX_NOTHROW_PURE_FUNCTION size_t bytes_align2ag_bytes(const MDBX_env *env, size_t bytes) {
+  return ceil_powerof2(bytes,
+                       (env->ps > globals.sys_allocation_granularity) ? env->ps : globals.sys_allocation_granularity);
+}
+
+MDBX_NOTHROW_PURE_FUNCTION size_t pgno_align2ag_bytes(const MDBX_env *env, size_t pgno) {
+  return ceil_powerof2(pgno2bytes(env, pgno), globals.sys_allocation_granularity);
+}
+
+MDBX_NOTHROW_PURE_FUNCTION pgno_t pgno_align2ag_pgno(const MDBX_env *env, size_t pgno) {
+  return bytes2pgno(env, pgno_align2ag_bytes(env, pgno));
+}
+
 /*----------------------------------------------------------------------------*/
 
 MDBX_NOTHROW_PURE_FUNCTION static __always_inline int cmp_int_inline(const size_t expected_alignment, const MDBX_val *a,

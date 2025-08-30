@@ -225,6 +225,12 @@ MDBX_NOTHROW_PURE_FUNCTION MDBX_INTERNAL size_t bytes_align2sp_bytes(const MDBX_
 MDBX_NOTHROW_PURE_FUNCTION MDBX_INTERNAL size_t pgno_align2sp_bytes(const MDBX_env *env, size_t pgno);
 MDBX_NOTHROW_PURE_FUNCTION MDBX_INTERNAL pgno_t pgno_align2sp_pgno(const MDBX_env *env, size_t pgno);
 
+/* align to system allocation granularity */
+MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION MDBX_INTERNAL size_t bytes_align2ag_bytes(const MDBX_env *env,
+                                                                                       size_t bytes);
+MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION MDBX_INTERNAL size_t pgno_align2ag_bytes(const MDBX_env *env, size_t pgno);
+MDBX_MAYBE_UNUSED MDBX_NOTHROW_PURE_FUNCTION MDBX_INTERNAL pgno_t pgno_align2ag_pgno(const MDBX_env *env, size_t pgno);
+
 MDBX_NOTHROW_PURE_FUNCTION static inline pgno_t largechunk_npages(const MDBX_env *env, size_t bytes) {
   return bytes2pgno(env, PAGEHDRSZ - 1 + bytes) + 1;
 }
