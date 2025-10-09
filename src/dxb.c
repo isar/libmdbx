@@ -154,6 +154,8 @@ __cold int dxb_resize(MDBX_env *const env, const pgno_t used_pgno, const pgno_t 
   unsigned mresize_flags = env->flags & (MDBX_RDONLY | MDBX_WRITEMAP | MDBX_UTTERLY_NOSYNC);
   if (mode >= impilict_shrink)
     mresize_flags |= txn_shrink_allowed;
+  if (fallocate_disabled(env))
+    mresize_flags |= MDBX_MRESIZE_NO_FALLOC;
 
   if (limit_bytes == env->dxb_mmap.limit && size_bytes == env->dxb_mmap.current && size_bytes == env->dxb_mmap.filesize)
     goto bailout;
@@ -532,7 +534,8 @@ __cold int dxb_setup(MDBX_env *env, const int lck_rc, const mdbx_mode_t mode_bit
     if (unlikely(err != MDBX_SUCCESS))
       return err;
 
-    err = osal_fallocate(env->lazy_fd, env->dxb_mmap.filesize = env->dxb_mmap.current = env->geo_in_bytes.now);
+    err = (fallocate_disabled(env) ? osal_ftruncate : osal_fallocate)(
+        env->lazy_fd, env->dxb_mmap.filesize = env->dxb_mmap.current = env->geo_in_bytes.now);
     if (unlikely(err != MDBX_SUCCESS))
       return err;
 
@@ -681,7 +684,10 @@ __cold int dxb_setup(MDBX_env *env, const int lck_rc, const mdbx_mode_t mode_bit
       !(env->flags & MDBX_NORDAHEAD) && mdbx_is_readahead_reasonable(used_bytes, 0) == MDBX_RESULT_TRUE;
 
   err = osal_mmap(env->flags, &env->dxb_mmap, env->geo_in_bytes.now, env->geo_in_bytes.upper,
-                  (lck_rc && env->stuck_meta < 0) ? MMAP_OPTION_SETLENGTH : 0, env->pathname.dxb);
+                  (lck_rc && env->stuck_meta < 0)
+                      ? (fallocate_disabled(env) ? MMAP_OPTION_SETLENGTH | MMAP_OPTION_NOFALLOC : MMAP_OPTION_SETLENGTH)
+                      : 0,
+                  env->pathname.dxb);
   if (unlikely(err != MDBX_SUCCESS))
     return err;
 

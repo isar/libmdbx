@@ -2087,7 +2087,7 @@ int osal_mmap(const int flags, osal_mmap_t *map, size_t size, const size_t limit
     return err;
 
   if ((flags & MDBX_RDONLY) == 0 && (options & MMAP_OPTION_SETLENGTH) != 0) {
-    err = osal_fallocate(map->fd, size);
+    err = ((options & MMAP_OPTION_NOFALLOC) ? osal_ftruncate : osal_fallocate)(map->fd, size);
     VERBOSE("ftruncate %zu, err %d", size, err);
     if (err != MDBX_SUCCESS)
       return err;
@@ -2333,7 +2333,7 @@ retry_file_and_section:
   }
 
   if ((flags & MDBX_RDONLY) == 0 && map->filesize != size) {
-    err = osal_fallocate(map->fd, size);
+    err = ((flags & MDBX_MRESIZE_NO_FALLOC) ? osal_ftruncate : osal_fallocate)(map->fd, size);
     if (err == MDBX_SUCCESS)
       map->filesize = size;
     /* ignore error, because Windows unable shrink file
@@ -2413,7 +2413,7 @@ retry_mapview:;
   } else {
     if (map->filesize != size) {
       if (size > map->filesize) {
-        rc = osal_fallocate(map->fd, size);
+        rc = ((flags & MDBX_MRESIZE_NO_FALLOC) ? osal_ftruncate : osal_fallocate)(map->fd, size);
         VERBOSE("f%s-%s %zu, err %d", "allocate", "extend", size, rc);
       } else if (flags & txn_shrink_allowed) {
         rc = osal_ftruncate(map->fd, size);

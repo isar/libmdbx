@@ -522,6 +522,10 @@ MDBX_INTERNAL void munlock_after(const MDBX_env *env, const pgno_t aligned_pgno,
 
 MDBX_INTERNAL void munlock_all(const MDBX_env *env);
 
+static inline bool fallocate_disabled(const MDBX_env *env) {
+  return env->incore && (globals.runtime_flags & MDBX_DBG_NOFALLOC_INCORE) != 0;
+}
+
 /*----------------------------------------------------------------------------*/
 /* Cache coherence and mmap invalidation */
 #ifndef MDBX_CPU_WRITEBACK_INCOHERENT
