@@ -837,7 +837,9 @@ enum MDBX_constants {
 
 /** Log level
  * \note Levels detailed than (great than) \ref MDBX_LOG_NOTICE
- * requires build libmdbx with \ref MDBX_DEBUG option. */
+ * requires build libmdbx with \ref MDBX_DEBUG option.
+ *
+ * \see mdbx_setup_debug() \see MDBX_log_level_t */
 typedef enum MDBX_log_level {
   /** Critical conditions, i.e. assertion failures.
    * \note libmdbx always produces such messages regardless
@@ -894,24 +896,26 @@ typedef enum MDBX_log_level {
  *
  * \details `MDBX_DBG_DUMP` and `MDBX_DBG_LEGACY_MULTIOPEN` always have an
  * effect, but `MDBX_DBG_ASSERT`, `MDBX_DBG_AUDIT` and `MDBX_DBG_JITTER` only if
- * libmdbx built with \ref MDBX_DEBUG. */
+ * libmdbx built with \ref MDBX_DEBUG.
+ *
+ * \see mdbx_setup_debug() \see MDBX_debug_flags_t */
 typedef enum MDBX_debug_flags {
   MDBX_DBG_NONE = 0,
 
-  /** Enable assertion checks.
+  /** Enables assertion checks.
    * \note Always enabled for builds with `MDBX_FORCE_ASSERTIONS` option,
    * otherwise requires build with \ref MDBX_DEBUG > 0 */
   MDBX_DBG_ASSERT = 1,
 
-  /** Enable pages usage audit at commit transactions.
+  /** Enables pages usage audit at commit transactions.
    * \note Requires build with \ref MDBX_DEBUG > 0 */
   MDBX_DBG_AUDIT = 2,
 
-  /** Enable small random delays in critical points.
+  /** Enables small random delays in critical points.
    * \note Requires build with \ref MDBX_DEBUG > 0 */
   MDBX_DBG_JITTER = 4,
 
-  /** Include or not meta-pages in coredump files.
+  /** Controls including of a database(s) meta-pages in coredump files.
    * \note May affect performance in \ref MDBX_WRITEMAP mode */
   MDBX_DBG_DUMP = 8,
 
@@ -921,9 +925,8 @@ typedef enum MDBX_debug_flags {
   /** Allow read and write transactions overlapping for the same thread. */
   MDBX_DBG_LEGACY_OVERLAP = 32,
 
-  /** Don't auto-upgrade format signature.
-   * \note However a new write transactions will use and store
-   * the last signature regardless this flag */
+  /** Disables automatic updating of the database format signature, i.e. upgrade database format on a media.
+   * \note Nonetheless a new write transactions will use and store the last signature regardless this flag */
   MDBX_DBG_DONT_UPGRADE = 64,
 
 #ifdef ENABLE_UBSAN
@@ -958,7 +961,9 @@ typedef void MDBX_debug_func(MDBX_log_level_t loglevel, const char *function, in
 
 /** \brief Setup global log-level, debug options and debug logger.
  * \returns The previously `debug_flags` in the 0-15 bits
- *          and `log_level` in the 16-31 bits. */
+ *          and `log_level` in the 16-31 bits.
+ *
+ * \see MDBX_log_level_t \see MDBX_debug_flags_t */
 LIBMDBX_API int mdbx_setup_debug(MDBX_log_level_t log_level, MDBX_debug_flags_t debug_flags, MDBX_debug_func *logger);
 
 typedef void MDBX_debug_func_nofmt(MDBX_log_level_t loglevel, const char *function, int line, const char *msg,
