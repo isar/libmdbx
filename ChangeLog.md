@@ -17,6 +17,7 @@ Donations are welcome to ETH `0xD104d8f8B2dC312aaD74899F83EBf3EEBDC1EA3A`.
 
  - [Erigon](https://erigon.tech/) за спонсорство.
  - [Артёму Воротникову](https://github.com/vorot93) за сообщение об ошибках и тестировании [призязок для Rust](https://github.com/vorot93/libmdbx-rs).
+ - [Stefan de Konink](https://github.com/skinkie) for fixing [Python bindings](https://github.com/wtdcode/mdbx-py) and documentation improvement.
 
 Новое:
 
@@ -34,6 +35,10 @@ Donations are welcome to ETH `0xD104d8f8B2dC312aaD74899F83EBf3EEBDC1EA3A`.
 
  - В API копирования БД добавлена опция `MDBX_CP_OVERWRITE` (перезапись целевого файла),
    а в утилиту `mdbx_copy` аналогичная по смыслу опция командной строки `-f` .
+
+ - В API добавлена опция-флажок `MDBX_DBG_NOFALLOC_INCORE` функции `mdbx_setup_debug()`
+   для отключения использования `fallocate()` для БД расположенных в tmpfs, чтобы предотвращать
+   неожиданные сбои автоматизированных тестов в условиях заполнения tmpfs или нехватки ОЗУ.
 
 Исправления:
 
@@ -392,7 +397,6 @@ Donations are welcome to ETH `0xD104d8f8B2dC312aaD74899F83EBf3EEBDC1EA3A`.
 Благодарности:
 
  - [Erigon](https://erigon.tech/) за спонсорство.
- - [Stefan de Konink](https://github.com/skinkie) for fixing [Python bindings](https://github.com/wtdcode/mdbx-py) and documentation improvement.
 
 Исправления:
 
