@@ -8,7 +8,7 @@ DIR="$(dirname ${BASH_SOURCE[0]})"
 TEST="${DIR}/stochastic.sh --skip-make --db-upto-gb 32"
 PREFIX="/dev/shm/mdbxtest-"
 
-NUMACTL="$(which numactl 2>-)"
+NUMACTL="$(which numactl 2>&-)"
 NUMALIST=()
 NUMAIDX=0
 if [ -n "${NUMACTL}" -a $(${NUMACTL} --hardware | grep 'node [0-9]\+ cpus' | wc -l) -gt 1 ]; then
