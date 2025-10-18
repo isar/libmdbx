@@ -433,8 +433,7 @@ enum osal_syncmode_bits {
 };
 
 MDBX_INTERNAL int osal_fsync(mdbx_filehandle_t fd, const enum osal_syncmode_bits mode_bits);
-MDBX_INTERNAL int osal_ftruncate(mdbx_filehandle_t fd, uint64_t length);
-MDBX_INTERNAL int osal_fallocate(mdbx_filehandle_t fd, uint64_t length);
+MDBX_INTERNAL int osal_fsetsize(mdbx_filehandle_t fd, const uint64_t length);
 MDBX_INTERNAL int osal_fseek(mdbx_filehandle_t fd, uint64_t pos);
 MDBX_INTERNAL int osal_filesize(mdbx_filehandle_t fd, uint64_t *length);
 
