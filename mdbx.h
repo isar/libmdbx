@@ -929,12 +929,8 @@ typedef enum MDBX_debug_flags {
    * \note Nonetheless a new write transactions will use and store the last signature regardless this flag */
   MDBX_DBG_DONT_UPGRADE = 64,
 
-  /** Disables the use of fallocate() for an in-core database(s) to avoid sporadic test failures
-   *  due to lack of space in tmpfs and/or free memory. */
-  MDBX_DBG_NOFALLOC_INCORE = 128,
-
 #ifdef ENABLE_UBSAN
-  MDBX_DBG_MAX = ((unsigned)MDBX_LOG_MAX) << 16 | 255 /* avoid UBSAN false-positive trap by a tests */,
+  MDBX_DBG_MAX = ((unsigned)MDBX_LOG_MAX) << 16 | 127 /* avoid UBSAN false-positive trap by a tests */,
 #endif /* ENABLE_UBSAN */
 
   /** for mdbx_setup_debug() only: Don't change current settings */

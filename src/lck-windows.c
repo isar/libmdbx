@@ -547,7 +547,7 @@ int lck_destroy(MDBX_env *env, MDBX_env *inprocess_neighbor, const uint32_t curr
     if (synced && !inprocess_neighbor && env->lck_mmap.fd != INVALID_HANDLE_VALUE &&
         lck_upgrade(env, true) == MDBX_SUCCESS)
       /* this will fail if LCK is used/mmapped by other process(es) */
-      osal_ftruncate(env->lck_mmap.fd, 0);
+      osal_fsetsize(env->lck_mmap.fd, 0);
   }
   lck_unlock(env);
   return MDBX_SUCCESS;

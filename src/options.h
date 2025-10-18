@@ -358,6 +358,19 @@
 #error MDBX_USE_COPYFILERANGE must be defined as 0 or 1
 #endif /* MDBX_USE_COPYFILERANGE */
 
+/** Advanced: Using posix_fallocate() or fcntl(F_PREALLOCATE) (autodetection by default). */
+#ifndef MDBX_USE_FALLOCATE
+#if defined(__APPLE__)
+#define MDBX_USE_FALLOCATE 0 /* Too slow and unclean, but not required to prevent SIGBUS */
+#elif (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L) || (__GLIBC_PREREQ(2, 10) && defined(_GNU_SOURCE))
+#define MDBX_USE_FALLOCATE 1
+#else
+#define MDBX_USE_FALLOCATE 0
+#endif
+#elif !(MDBX_USE_FALLOCATE == 0 || MDBX_USE_FALLOCATE == 1)
+#error MDBX_USE_FALLOCATE must be defined as 0 or 1
+#endif /* MDBX_USE_FALLOCATE */
+
 //------------------------------------------------------------------------------
 
 #ifndef MDBX_CPU_WRITEBACK_INCOHERENT

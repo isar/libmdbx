@@ -10,7 +10,7 @@ N |   MASK  | ENV       | TXN          | DB       | PUT       | DBI        | NOD
 7 |0000 0080|           |TXN_DRAINED_GC|DB_VALID  |ALLDUPS    |DBI_LINDO   |         |          |         |
 8 |0000 0100| _MAY_MOVE |TXN_CURSORS   |          |           |            |         |          | <=      |
 9 |0000 0200| _MAY_UNMAP|              |          |           |            |         |          | <=      |
-10|0000 0400| _NO_FALLOC|              |          |           |            |         |          | <=      |
+10|0000 0400|           |              |          |           |            |         |          |         |
 11|0000 0800|           |              |          |           |            |         |          |         |
 12|0000 1000|           |              |          |           |            |         |          |         |
 13|0000 2000|VALIDATION |              |          |           |            |         |P_SPILLED |         |
