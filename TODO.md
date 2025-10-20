@@ -2,6 +2,8 @@
 TODO
 ----
 
+ - add optional page-get and operation statistics for cursors.
+ - split ASSERT() to CHECK{0,1,2,3} and basal `assert()`.
  - HarmonyOS support.
  - [SWIG](https://www.swig.org/).
  - Параллельная lto-сборка с устранением предупреждений.
