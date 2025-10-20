@@ -82,6 +82,7 @@ class libmdbx(ConanFile):
         'mdbx.use_mincore': ['Auto', True, False],
         'mdbx.use_ofdlocks': ['Auto', True, False],
         'mdbx.use_sendfile': ['Auto', True, False],
+        'mdbx.use_fallocate': ['Auto', True, False],
         'mdbx.without_msvc_crt': ['Default', True, False],
         'shared': [True, False],
     }
@@ -113,6 +114,7 @@ class libmdbx(ConanFile):
         'mdbx.use_mincore': 'Auto',
         'mdbx.use_ofdlocks': 'Auto',
         'mdbx.use_sendfile': 'Auto',
+        'mdbx.use_fallocate': 'Auto',
         'mdbx.without_msvc_crt': 'Default',
         'shared': True,
     }
@@ -143,7 +145,8 @@ class libmdbx(ConanFile):
         'mdbx.use_copyfilerange': 'Advanced: Use `copy_file_range()` syscall. ',
         'mdbx.use_mincore': "Use Unix' `mincore()` to determine whether database pages are resident in memory. ",
         'mdbx.use_ofdlocks': 'Advanced: Use POSIX OFD-locks. ',
-        'mdbx.use_sendfile': 'Advancedc: Use `sendfile()` syscall. ',
+        'mdbx.use_sendfile': 'Advanced: Use `sendfile()` syscall. ',
+        'mdbx.use_fallocate': 'Advanced: Use posix_fallocate() or fcntl(F_PREALLOCATE) on OSX. ',
         'mdbx.without_msvc_crt': 'Avoid dependence from MSVC CRT and use ntdll.dll instead. ',
     }
 
@@ -160,6 +163,7 @@ class libmdbx(ConanFile):
             self.options.rm_safe('mdbx.mmap_incoherent_file_write')
             self.options.rm_safe('mdbx.use_mincore')
             self.options.rm_safe('mdbx.use_ofdlocks')
+            self.options.rm_safe('mdbx.use_fallocate')
         else:
             self.options.rm_safe('mdbx.without_msvc_crt')
         if is_apple_os(self):
