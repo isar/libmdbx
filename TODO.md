@@ -4,7 +4,6 @@ TODO
 
  - add optional page-get and operation statistics for cursors.
  - split ASSERT() to CHECK{0,1,2,3} and basal `assert()`.
- - HarmonyOS support.
  - [SWIG](https://www.swig.org/).
  - Параллельная lto-сборка с устранением предупреждений.
  - Интеграция c DTrace и аналогами.
@@ -28,6 +27,7 @@ In development
 Done
 ----
 
+ - HarmonyOS support.
  - Ранняя/не-отложенная очистка GC.
  - Рефакторинг gc-get/gc-put c переходом на "интервальные" списки.
  - [Engage new terminology](https://libmdbx.dqdkfa.ru/dead-github/issues/137).
