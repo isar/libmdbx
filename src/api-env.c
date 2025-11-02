@@ -664,7 +664,7 @@ __cold int mdbx_env_close_ex(MDBX_env *env, bool dont_sync) {
 
 /*----------------------------------------------------------------------------*/
 
-static void env_info_sys(const MDBX_env *env, MDBX_envinfo *out) {
+__must_check_result static int env_info_sys(const MDBX_env *env, MDBX_envinfo *out) {
   out->mi_bootid.current.x = globals.bootid.x;
   out->mi_bootid.current.y = globals.bootid.y;
   out->mi_sys_pagesize = globals.sys_pagesize;
@@ -678,6 +678,9 @@ static void env_info_sys(const MDBX_env *env, MDBX_envinfo *out) {
   out->mi_sys_upcblk = globals.sys_pagesize;
 #endif /* AT_UCACHEBSIZE */
 
+  out->mi_dxb_fsize = 0;
+  out->mi_dxb_fallocated = 0;
+  out->mi_sys_ioblk = 0;
   if (env->dxb_mmap.fd != INVALID_HANDLE_VALUE) {
 #if defined(_WIN32) || defined(_WIN64)
     union {
@@ -703,19 +706,26 @@ static void env_info_sys(const MDBX_env *env, MDBX_envinfo *out) {
 #endif
     } else if (GetFileInformationByHandle(env->dxb_mmap.fd, &sys_finfo.bh)) {
       out->mi_dxb_fsize = sys_finfo.bh.nFileSizeLow | (uint64_t)sys_finfo.bh.nFileSizeHigh << 32;
-    }
+    } else
+      return GetLastError();
 #else
     struct stat sys_fstat;
-    if (fstat(env->dxb_mmap.fd, &sys_fstat) == 0) {
-      out->mi_dxb_fsize = sys_fstat.st_size;
-      out->mi_dxb_fallocated = UINT64_C(512) * sys_fstat.st_blocks;
-      out->mi_sys_ioblk = sys_fstat.st_blksize;
-    }
+    if (fstat(env->dxb_mmap.fd, &sys_fstat))
+      return errno;
+    out->mi_dxb_fsize = sys_fstat.st_size;
+    out->mi_dxb_fallocated = UINT64_C(512) * sys_fstat.st_blocks;
+    out->mi_sys_ioblk = sys_fstat.st_blksize;
 #endif /* !Windows */
   }
+  return MDBX_SUCCESS;
 }
 
-static int env_info_snap(const MDBX_env *env, const MDBX_txn *txn, MDBX_envinfo *out, troika_t *const troika) {
+__must_check_result static int env_info_snap(const MDBX_env *env, const MDBX_txn *txn, MDBX_envinfo *out,
+                                             troika_t *const troika) {
+  int err = env_info_sys(env, out);
+  if (unlikely(err != MDBX_SUCCESS))
+    return err;
+
   if (unlikely(env->flags & ENV_FATAL_ERROR))
     return MDBX_PANIC;
 
@@ -833,8 +843,6 @@ static int env_info_snap(const MDBX_env *env, const MDBX_txn *txn, MDBX_envinfo 
 }
 
 __cold int env_info(const MDBX_env *env, const MDBX_txn *txn, MDBX_envinfo *out, troika_t *troika) {
-  env_info_sys(env, out);
-
   MDBX_envinfo snap;
   int rc = env_info_snap(env, txn, &snap, troika);
   if (unlikely(rc != MDBX_SUCCESS))
@@ -918,7 +926,7 @@ __cold int mdbx_preopen_snapinfoW(const wchar_t *pathname, MDBX_envinfo *out, si
 #endif /* Windows */
   env_options_init(&env);
 
-  int rc = env_handle_pathname(&env, pathname, 0);
+  int err, rc = env_handle_pathname(&env, pathname, 0);
   if (unlikely(rc != MDBX_SUCCESS))
     goto bailout;
   rc = osal_openfile(MDBX_OPEN_DXB_READ, &env, env.pathname.dxb, &env.lazy_fd, 0);
@@ -945,8 +953,10 @@ __cold int mdbx_preopen_snapinfoW(const wchar_t *pathname, MDBX_envinfo *out, si
   memcpy(&out->mi_dxbid, &header.dxbid, 16);
 
 bailout:
-  env_info_sys(&env, out);
-  env_close(&env, false);
+  err = env_info_sys(&env, out);
+  rc = rc ? rc : err;
+  err = env_close(&env, false);
+  rc = rc ? rc : err;
   return LOG_IFERR(rc);
 }
 
