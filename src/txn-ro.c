@@ -168,6 +168,15 @@ int txn_ro_end(MDBX_txn *txn, unsigned mode) {
       txn->ro.slot = nullptr;
     else {
       eASSERT(env, slot->pid.weak == env->pid);
+      if (unlikely(slot->pid.weak == 0)) {
+        txn->flags = MDBX_TXN_RDONLY | MDBX_TXN_FINISHED | MDBX_TXN_OUSTED;
+        txn->owner = 0;
+        if (mode & TXN_END_FREE) {
+          txn->signature = 0;
+          osal_free(txn);
+        }
+        return LOG_IFERR(MDBX_BAD_RSLOT);
+      }
       if (likely((txn->flags & MDBX_TXN_FINISHED) == 0)) {
         if (likely((txn->flags & MDBX_TXN_PARKED) == 0)) {
           ENSURE(env, txn->txnid >=
