@@ -146,8 +146,7 @@ __cold const char *mdbx_liberr2str(int errnum) {
       " or Operation system not supported such operations",
       "MDBX_INCOMPATIBLE: Environment or database is not compatible"
       " with the requested operation or the specified flags",
-      "MDBX_BAD_RSLOT: Invalid reuse of reader locktable slot,"
-      " e.g. read-transaction already run for current thread",
+      "MDBX_BAD_RSLOT: Reader locktable slot was unexpectly reused or cleared by an enemy thread",
       "MDBX_BAD_TXN: Transaction is not valid for requested operation,"
       " e.g. had errored and be must aborted, has a child, or is invalid",
       "MDBX_BAD_VALSIZE: Invalid size or alignment of key or data"

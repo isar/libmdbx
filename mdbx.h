@@ -1909,8 +1909,7 @@ typedef enum MDBX_error {
    *  - The table was dropped and recreated with different flags. */
   MDBX_INCOMPATIBLE = -30784,
 
-  /** Invalid reuse of reader locktable slot,
-   * e.g. read-transaction already run for current thread */
+  /** Reader locktable slot was unexpectly reused or cleared by an enemy thread */
   MDBX_BAD_RSLOT = -30783,
 
   /** Transaction is not valid for requested operation,
