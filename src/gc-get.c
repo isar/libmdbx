@@ -878,7 +878,7 @@ pgr_t gc_alloc_ex(const MDBX_cursor *const mc, const size_t num, uint8_t flags) 
   //---------------------------------------------------------------------------
 
   if (unlikely(!is_reclaimable(txn, mc, flags))) {
-    eASSERT(env, (txn->flags & txn_gc_drained) || num > 1);
+    eASSERT(env, (txn->flags & txn_gc_drained) || num > 1 || mc->tree == &txn->dbs[FREE_DBI]);
     goto no_gc;
   }
 
