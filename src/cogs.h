@@ -504,9 +504,9 @@ static inline int check_txn_rw(const MDBX_txn *txn, int bad_bits) {
 }
 
 MDBX_NOTHROW_CONST_FUNCTION static inline txnid_t txn_basis_snapshot(const MDBX_txn *txn) {
-  STATIC_ASSERT((MDBX_TXN_RDONLY >> 17) == 1);
-  STATIC_ASSERT((xMDBX_TXNID_STEP >> (xMDBX_TXNID_STEP == 2)) == 1);
-  const txnid_t committed_txnid = txn->txnid + (xMDBX_TXNID_STEP >> (xMDBX_TXNID_STEP == 2)) - ((txn->flags >> 17) & 1);
+  STATIC_ASSERT(((MDBX_TXN_RDONLY >> ((xMDBX_TXNID_STEP == 2) ? 16 : 17)) & xMDBX_TXNID_STEP) == xMDBX_TXNID_STEP);
+  const txnid_t committed_txnid =
+      txn->txnid - xMDBX_TXNID_STEP + ((txn->flags >> ((xMDBX_TXNID_STEP == 2) ? 16 : 17)) & xMDBX_TXNID_STEP);
   tASSERT(txn, committed_txnid == ((txn->flags & MDBX_TXN_RDONLY) ? txn->txnid : txn->txnid - xMDBX_TXNID_STEP));
   return committed_txnid;
 }
