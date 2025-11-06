@@ -37,7 +37,7 @@ int mdbx_dbi_sequence(MDBX_txn *txn, MDBX_dbi dbi, uint64_t *result, uint64_t in
     return LOG_IFERR(rc);
 
   if (unlikely(txn->dbi_state[dbi] & DBI_STALE)) {
-    rc = tbl_fetch(txn, dbi);
+    rc = tbl_refresh_absent2baddbi(txn, dbi);
     if (unlikely(rc != MDBX_SUCCESS))
       return LOG_IFERR(rc);
   }

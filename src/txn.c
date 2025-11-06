@@ -47,7 +47,7 @@ int txn_shadow_cursors(const MDBX_txn *parent, const size_t dbi) {
     int err = cursor_shadow(cursor, txn, dbi);
     if (unlikely(err != MDBX_SUCCESS)) {
       /* не получилось забекапить курсоры */
-      txn->dbi_state[dbi] = DBI_OLDEN | DBI_LINDO | DBI_STALE;
+      txn->dbi_state[dbi] = DBI_OLDEN | DBI_LINDO;
       txn->flags |= MDBX_TXN_ERROR;
       return err;
     }

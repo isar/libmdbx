@@ -293,7 +293,7 @@ static __always_inline int couple_init(cursor_couple_t *couple, const MDBX_txn *
   }
 
   if (unlikely(*dbi_state & DBI_STALE))
-    return tbl_fetch(couple->outer.txn, cursor_dbi(&couple->outer));
+    return tbl_refresh_absent2baddbi(couple->outer.txn, cursor_dbi(&couple->outer));
 
   return tbl_setup_ifneed(txn->env, kvx, tree);
 }

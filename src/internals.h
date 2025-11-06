@@ -142,10 +142,10 @@ struct kvx {
 
 /* Non-shared DBI state flags inside transaction */
 enum dbi_state {
-  DBI_DIRTY = 0x01 /* DB was written in this txn */,
-  DBI_STALE = 0x02 /* Named-DB record is older than txnID */,
-  DBI_FRESH = 0x04 /* Named-DB handle opened in this txn */,
-  DBI_CREAT = 0x08 /* Named-DB handle created in this txn */,
+  DBI_DIRTY = 0x01 /* table was written in this txn */,
+  DBI_STALE = 0x02 /* cached table record is outdated and should be reloaded/refreshed */,
+  DBI_FRESH = 0x04 /* table handle opened in this txn */,
+  DBI_CREAT = 0x08 /* table handle created in this txn */,
   DBI_VALID = 0x10 /* Handle is valid, see also DB_VALID */,
   DBI_OLDEN = 0x40 /* Handle was closed/reopened outside txn */,
   DBI_LINDO = 0x80 /* Lazy initialization done for DBI-slot */,

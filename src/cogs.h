@@ -200,8 +200,14 @@ static inline bool check_table_flags(unsigned flags) {
   }
 }
 
-static inline int tbl_setup_ifneed(const MDBX_env *env, volatile kvx_t *const kvx, const tree_t *const db) {
+MDBX_MAYBE_UNUSED static inline int tbl_setup_ifneed(const MDBX_env *env, volatile kvx_t *const kvx,
+                                                     const tree_t *const db) {
   return likely(kvx->clc.v.lmax) ? MDBX_SUCCESS : tbl_setup(env, kvx, db);
+}
+
+MDBX_MAYBE_UNUSED static inline int tbl_refresh_absent2baddbi(MDBX_txn *txn, size_t dbi) {
+  int rc = tbl_refresh(txn, dbi);
+  return likely(rc != MDBX_NOTFOUND) ? rc : MDBX_BAD_DBI;
 }
 
 /*----------------------------------------------------------------------------*/

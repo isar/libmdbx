@@ -80,6 +80,7 @@ static inline bool dbi_foreach_step(const MDBX_txn *const txn, size_t *bitmap_it
 #define TXN_FOREACH_DBI_USER(TXN, I) TXN_FOREACH_DBI_FROM(TXN, I, CORE_DBS)
 
 MDBX_INTERNAL int dbi_import(MDBX_txn *txn, const size_t dbi);
+MDBX_INTERNAL int dbi_gone(MDBX_txn *txn, const size_t dbi, const int rc);
 
 struct dbi_snap_result {
   uint32_t sequence;

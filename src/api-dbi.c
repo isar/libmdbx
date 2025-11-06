@@ -241,7 +241,7 @@ __cold int mdbx_dbi_stat(const MDBX_txn *txn, MDBX_dbi dbi, MDBX_stat *dest, siz
     return LOG_IFERR(MDBX_BAD_TXN);
 
   if (unlikely(txn->dbi_state[dbi] & DBI_STALE)) {
-    rc = tbl_fetch((MDBX_txn *)txn, dbi);
+    rc = tbl_refresh((MDBX_txn *)txn, dbi);
     if (unlikely(rc != MDBX_SUCCESS))
       return LOG_IFERR(rc);
   }

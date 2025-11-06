@@ -109,8 +109,12 @@ MDBX_INTERNAL void recalculate_merge_thresholds(MDBX_env *env);
 MDBX_INTERNAL void recalculate_subpage_thresholds(MDBX_env *env);
 
 /* table.c */
-MDBX_INTERNAL int __must_check_result tbl_fetch(MDBX_txn *txn, size_t dbi);
+MDBX_INTERNAL int __must_check_result tbl_fetch(MDBX_txn *txn, MDBX_cursor *mc, size_t dbi, const MDBX_val *name,
+                                                unsigned wanna_flags);
+MDBX_INTERNAL int __must_check_result tbl_create(MDBX_txn *txn, MDBX_cursor *mc, size_t slot, const MDBX_val *name,
+                                                 unsigned db_flags);
 MDBX_INTERNAL int __must_check_result tbl_setup(const MDBX_env *env, volatile kvx_t *const kvx, const tree_t *const db);
+MDBX_INTERNAL int __must_check_result tbl_refresh(MDBX_txn *txn, size_t dbi);
 
 /* coherency.c */
 MDBX_INTERNAL bool coherency_check_meta(const MDBX_env *env, const volatile meta_t *meta, bool report);

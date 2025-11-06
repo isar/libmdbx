@@ -33,6 +33,23 @@ struct dbi_snap_result dbi_snap(const MDBX_env *env, const size_t dbi) {
   return r;
 }
 
+int dbi_gone(MDBX_txn *txn, const size_t dbi, const int rc) {
+  tASSERT(txn, txn->n_dbi > dbi && F_ISSET(txn->dbi_state[dbi], DBI_LINDO | DBI_VALID));
+  for (;;) {
+    unsigned state = txn->dbi_state[dbi];
+    txn->dbi_state[dbi] = DBI_OLDEN | DBI_LINDO;
+    if (state & (DBI_FRESH | DBI_CREAT))
+      return rc;
+    if (!txn->parent)
+      break;
+    txn = txn->parent;
+  }
+
+  /* TODO: FIXME */
+  txn->dbi_seqs[dbi] = 0;
+  return rc;
+}
+
 __noinline int dbi_import(MDBX_txn *txn, const size_t dbi) {
   const MDBX_env *const env = txn->env;
   if (dbi >= env->n_dbi || !env->dbs_flags[dbi])
@@ -266,8 +283,8 @@ int dbi_bind(MDBX_txn *txn, const size_t dbi, unsigned user_flags, MDBX_cmp_func
     else {
       if (txn->dbi_state[dbi] & DBI_STALE) {
         eASSERT(env, env->dbs_flags[dbi] & DB_VALID);
-        int err = tbl_fetch(txn, dbi);
-        if (unlikely(err == MDBX_SUCCESS))
+        int err = tbl_refresh(txn, dbi);
+        if (unlikely(err != MDBX_NOTFOUND))
           return err;
       }
       eASSERT(env, ((env->dbs_flags[dbi] ^ txn->dbs[dbi].flags) & DB_PERSISTENT_FLAGS) == 0);
@@ -325,8 +342,9 @@ static inline size_t dbi_namelen(const MDBX_val name) {
   return (name.iov_len > sizeof(defer_free_item_t)) ? name.iov_len : sizeof(defer_free_item_t);
 }
 
-static int dbi_open_locked(MDBX_txn *txn, unsigned user_flags, MDBX_dbi *dbi, MDBX_cmp_func *keycmp,
-                           MDBX_cmp_func *datacmp, MDBX_val name) {
+static int dbi_open_locked(MDBX_txn *txn, cursor_couple_t *maindb_cx, unsigned user_flags, MDBX_cmp_func *keycmp,
+                           MDBX_cmp_func *datacmp, MDBX_val name, const size_t fastpath_slot) {
+  int rc;
   MDBX_env *const env = txn->env;
 
   /* Cannot mix named table(s) with DUPSORT flags */
@@ -352,12 +370,12 @@ static int dbi_open_locked(MDBX_txn *txn, unsigned user_flags, MDBX_dbi *dbi, MD
     env->kvs[MAIN_DBI].clc.v.cmp = builtin_datacmp(main_flags);
     txn->dbs[MAIN_DBI].flags = main_flags;
     txn->dbs[MAIN_DBI].dupfix_size = 0;
-    int err = tbl_setup(env, &env->kvs[MAIN_DBI], &txn->dbs[MAIN_DBI]);
-    if (unlikely(err != MDBX_SUCCESS)) {
+    rc = tbl_setup(env, &env->kvs[MAIN_DBI], &txn->dbs[MAIN_DBI]);
+    if (unlikely(rc != MDBX_SUCCESS)) {
       txn->dbi_state[MAIN_DBI] = DBI_LINDO;
       txn->flags |= MDBX_TXN_ERROR;
       env->flags |= ENV_FATAL_ERROR;
-      return err;
+      return rc;
     }
     env->dbs_flags[MAIN_DBI] = main_flags | DB_VALID;
     txn->dbi_seqs[MAIN_DBI] = atomic_store32(&env->dbi_seqs[MAIN_DBI], seq, mo_AcquireRelease);
@@ -368,6 +386,7 @@ static int dbi_open_locked(MDBX_txn *txn, unsigned user_flags, MDBX_dbi *dbi, MD
   tASSERT(txn, env->kvs[MAIN_DBI].clc.k.cmp);
 
   /* Is the DB already open? */
+  defer_free_item_t *clone = nullptr;
   size_t slot = env->n_dbi;
   for (size_t scan = CORE_DBS; scan < env->n_dbi; ++scan) {
     if ((env->dbs_flags[scan] & DB_VALID) == 0) {
@@ -377,21 +396,49 @@ static int dbi_open_locked(MDBX_txn *txn, unsigned user_flags, MDBX_dbi *dbi, MD
     }
     if (env->kvs[MAIN_DBI].clc.k.cmp(&name, &env->kvs[scan].name) == 0) {
       slot = scan;
-      int err = dbi_check(txn, slot);
-      if (err == MDBX_BAD_DBI && txn->dbi_state[slot] == (DBI_OLDEN | DBI_LINDO)) {
+      rc = dbi_check(txn, slot);
+      if (rc == MDBX_BAD_DBI && txn->dbi_state[slot] == (DBI_OLDEN | DBI_LINDO)) {
         /* хендл использовался, стал невалидным,
-         * но теперь явно пере-открывается в этой транзакци */
+         * но теперь явно пере-открывается в этой транзакции */
         eASSERT(env, !txn->cursors[slot]);
         txn->dbi_state[slot] = DBI_LINDO;
-        err = dbi_check(txn, slot);
+        txn->dbi_seqs[slot] = 0;
+        rc = dbi_import(txn, slot);
+        /* TODO: FIXME */
       }
-      if (err == MDBX_SUCCESS) {
-        err = dbi_bind(txn, slot, user_flags, keycmp, datacmp);
-        if (likely(err == MDBX_SUCCESS)) {
-          goto done;
+      if (unlikely(rc != MDBX_SUCCESS))
+        return rc;
+
+      rc = dbi_bind(txn, slot, user_flags, keycmp, datacmp);
+      if (unlikely(rc != MDBX_SUCCESS))
+        return rc;
+
+      if (unlikely((txn->dbi_state[slot] & DBI_STALE) == 0))
+        goto done;
+
+      if (fastpath_slot /* уже был выполнен поиск посредством tbl_fetch() */) {
+        if (slot != fastpath_slot)
+          txn->dbs[slot] = txn->dbs[fastpath_slot];
+        if (user_flags & MDBX_CREATE) {
+          /* значит таблица уже была открытой, но проверка её наличия в fastpath вернула MDBX_NOTFOUND */
+          rc = MDBX_NOTFOUND;
+        } else {
+          /* значит в fastpath был найден пустой слот и проверка наличия таблицы завершилась успешно */
+          assert(rc == MDBX_SUCCESS);
         }
+      } else {
+        rc = tbl_fetch(txn, &maindb_cx->outer, slot, &name, user_flags);
       }
-      return err;
+
+      if (likely(rc == MDBX_SUCCESS))
+        goto done;
+
+      if (rc == MDBX_NOTFOUND && (user_flags & MDBX_CREATE)) {
+        name = env->kvs[scan].name;
+        goto create;
+      }
+
+      return dbi_gone(txn, slot, rc);
     }
   }
 
@@ -409,88 +456,72 @@ static int dbi_open_locked(MDBX_txn *txn, unsigned user_flags, MDBX_dbi *dbi, MD
     env->n_dbi = (unsigned)slot + 1;
   eASSERT(env, slot < env->n_dbi);
 
-  int err = dbi_check(txn, slot);
-  eASSERT(env, err == MDBX_BAD_DBI);
-  if (unlikely(err != MDBX_BAD_DBI))
+  rc = dbi_check(txn, slot);
+  eASSERT(env, rc == MDBX_BAD_DBI);
+  if (unlikely(rc != MDBX_BAD_DBI))
     return MDBX_PROBLEM;
 
   /* Find the DB info */
-  MDBX_val body;
-  cursor_couple_t cx;
-  int rc = cursor_init(&cx.outer, txn, MAIN_DBI);
-  if (unlikely(rc != MDBX_SUCCESS))
-    return rc;
-  rc = cursor_seek(&cx.outer, &name, &body, MDBX_SET).err;
+  rc = tbl_fetch(txn, &maindb_cx->outer, slot, &name, user_flags);
   if (unlikely(rc != MDBX_SUCCESS)) {
     if (rc != MDBX_NOTFOUND || !(user_flags & MDBX_CREATE))
       return rc;
-  } else {
-    /* make sure this is actually a table */
-    node_t *node = page_node(cx.outer.pg[cx.outer.top], cx.outer.ki[cx.outer.top]);
-    if (unlikely((node_flags(node) & (N_DUP | N_TREE)) != N_TREE))
-      return MDBX_INCOMPATIBLE;
-    if (!MDBX_DISABLE_VALIDATION && unlikely(body.iov_len != sizeof(tree_t))) {
-      ERROR("%s/%d: %s %zu", "MDBX_CORRUPTED", MDBX_CORRUPTED, "invalid table node size", body.iov_len);
-      return MDBX_CORRUPTED;
-    }
-    memcpy(&txn->dbs[slot], body.iov_base, sizeof(tree_t));
   }
 
   /* Done here so we cannot fail after creating a new DB */
-  defer_free_item_t *const clone = osal_malloc(dbi_namelen(name));
+  clone = osal_malloc(dbi_namelen(name));
   if (unlikely(!clone))
     return MDBX_ENOMEM;
   memcpy(clone, name.iov_base, name.iov_len);
   name.iov_base = clone;
 
+create:
+  tASSERT(txn, rc == MDBX_SUCCESS || rc == MDBX_NOTFOUND);
   uint8_t dbi_state = DBI_LINDO | DBI_VALID | DBI_FRESH;
   if (unlikely(rc != MDBX_SUCCESS)) {
-    /* MDBX_NOTFOUND and MDBX_CREATE: Create new DB */
-    tASSERT(txn, rc == MDBX_NOTFOUND);
-    body.iov_base = memset(&txn->dbs[slot], 0, body.iov_len = sizeof(tree_t));
-    txn->dbs[slot].root = P_INVALID;
-    txn->dbs[slot].mod_txnid = txn->txnid;
-    txn->dbs[slot].flags = user_flags & DB_PERSISTENT_FLAGS;
-    cx.outer.next = txn->cursors[MAIN_DBI];
-    txn->cursors[MAIN_DBI] = &cx.outer;
-    rc = cursor_put_checklen(&cx.outer, &name, &body, N_TREE | MDBX_NOOVERWRITE);
-    txn->cursors[MAIN_DBI] = cx.outer.next;
+    rc = tbl_create(txn, &maindb_cx->outer, slot, &name, user_flags);
     if (unlikely(rc != MDBX_SUCCESS))
       goto bailout;
-
     dbi_state |= DBI_DIRTY | DBI_CREAT;
-    txn->flags |= MDBX_TXN_DIRTY;
-    tASSERT(txn, (txn->dbi_state[MAIN_DBI] & DBI_DIRTY) != 0);
   }
 
   /* Got info, register DBI in this txn */
   const uint32_t seq = dbi_seq_next(env, slot);
-  eASSERT(env, env->dbs_flags[slot] == DB_POISON && !txn->cursors[slot] &&
-                   (txn->dbi_state[slot] & (DBI_LINDO | DBI_VALID)) == DBI_LINDO);
-  txn->dbi_state[slot] = dbi_state;
-  memcpy(&txn->dbs[slot], body.iov_base, sizeof(txn->dbs[slot]));
-  env->dbs_flags[slot] = txn->dbs[slot].flags;
-  rc = dbi_bind(txn, slot, user_flags, keycmp, datacmp);
-  if (unlikely(rc != MDBX_SUCCESS))
-    goto bailout;
+  eASSERT(env, !txn->cursors[slot]);
+  if (clone) {
+    eASSERT(env, env->dbs_flags[slot] == DB_POISON && (txn->dbi_state[slot] & (DBI_LINDO | DBI_VALID)) == DBI_LINDO);
+    txn->dbi_state[slot] = dbi_state;
+    env->dbs_flags[slot] = txn->dbs[slot].flags;
+    rc = dbi_bind(txn, slot, user_flags, keycmp, datacmp);
+    if (unlikely(rc != MDBX_SUCCESS))
+      goto bailout;
 
-  env->kvs[slot].name = name;
-  env->dbs_flags[slot] = txn->dbs[slot].flags | DB_VALID;
-  txn->dbi_seqs[slot] = atomic_store32(&env->dbi_seqs[slot], seq, mo_AcquireRelease);
+    env->kvs[slot].name = name;
+    env->dbs_flags[slot] = txn->dbs[slot].flags | DB_VALID;
+    txn->dbi_seqs[slot] = atomic_store32(&env->dbi_seqs[slot], seq, mo_AcquireRelease);
+  } else {
+    eASSERT(env, env->dbs_flags[slot] == (DB_VALID | (user_flags & DB_PERSISTENT_FLAGS)) &&
+                     env->dbs_flags[slot] == (DB_VALID | txn->dbs[slot].flags) &&
+                     txn->dbi_state[slot] == (DBI_LINDO | DBI_VALID | DBI_STALE));
+  }
 
 done:
-  *dbi = (MDBX_dbi)slot;
+  *(MDBX_dbi *)maindb_cx->userctx = (MDBX_dbi)slot;
   tASSERT(txn, slot < txn->n_dbi && (env->dbs_flags[slot] & DB_VALID) != 0);
   eASSERT(env, dbi_check(txn, slot) == MDBX_SUCCESS);
   return MDBX_SUCCESS;
 
 bailout:
-  eASSERT(env, !txn->cursors[slot] && !env->kvs[slot].name.iov_len && !env->kvs[slot].name.iov_base);
   txn->dbi_state[slot] &= DBI_LINDO | DBI_OLDEN;
   env->dbs_flags[slot] = 0;
-  osal_free(clone);
-  if (slot + 1 == env->n_dbi)
-    txn->n_dbi = env->n_dbi = (unsigned)slot;
+  if (clone) {
+    eASSERT(env, !txn->cursors[slot] && !env->kvs[slot].name.iov_len && !env->kvs[slot].name.iov_base);
+    osal_free(clone);
+    if (slot + 1 == env->n_dbi)
+      txn->n_dbi = env->n_dbi = (unsigned)slot;
+  } else {
+    eASSERT(env, name.iov_base == env->kvs[slot].name.iov_base);
+  }
   return rc;
 }
 
@@ -528,18 +559,20 @@ int dbi_open(MDBX_txn *txn, const MDBX_val *const name, unsigned user_flags, MDB
   if (unlikely(name->iov_len > txn->env->leaf_nodemax - NODESIZE - sizeof(tree_t)))
     return MDBX_EINVAL;
 
+  cursor_couple_t cx;
+  size_t fastpath_slot = 0;
 #if MDBX_ENABLE_DBI_LOCKFREE
   /* Is the DB already open? */
   const MDBX_env *const env = txn->env;
-  bool have_free_slot = env->n_dbi < env->max_dbi;
-  for (size_t i = CORE_DBS; i < env->n_dbi; ++i) {
-    if ((env->dbs_flags[i] & DB_VALID) == 0) {
-      have_free_slot = true;
+  size_t first_free_slot = env->n_dbi;
+  for (size_t slot = CORE_DBS; slot < env->n_dbi; ++slot) {
+    if ((env->dbs_flags[slot] & DB_VALID) == 0) {
+      first_free_slot = (first_free_slot < slot) ? first_free_slot : slot;
       continue;
     }
 
-    struct dbi_snap_result snap = dbi_snap(env, i);
-    const MDBX_val snap_name = env->kvs[i].name;
+    struct dbi_snap_result snap = dbi_snap(env, slot);
+    const MDBX_val snap_name = env->kvs[slot].name;
     const uint32_t main_seq = atomic_load32(&env->dbi_seqs[MAIN_DBI], mo_AcquireRelease);
     MDBX_cmp_func *const snap_cmp = env->kvs[MAIN_DBI].clc.k.cmp;
     if (unlikely(!(snap.flags & DB_VALID) || !snap_name.iov_base || !snap_name.iov_len || !snap_cmp))
@@ -547,10 +580,10 @@ int dbi_open(MDBX_txn *txn, const MDBX_val *const name, unsigned user_flags, MDB
       goto slowpath_locking;
 
     const bool name_match = snap_cmp(&snap_name, name) == 0;
-    if (unlikely(snap.sequence != atomic_load32(&env->dbi_seqs[i], mo_AcquireRelease) ||
+    if (unlikely(snap.sequence != atomic_load32(&env->dbi_seqs[slot], mo_AcquireRelease) ||
                  main_seq != atomic_load32(&env->dbi_seqs[MAIN_DBI], mo_AcquireRelease) ||
-                 snap.flags != env->dbs_flags[i] || snap_name.iov_base != env->kvs[i].name.iov_base ||
-                 snap_name.iov_len != env->kvs[i].name.iov_len))
+                 snap.flags != env->dbs_flags[slot] || snap_name.iov_base != env->kvs[slot].name.iov_base ||
+                 snap_name.iov_len != env->kvs[slot].name.iov_len))
       /* похоже на столкновение с параллельно работающим обновлением */
       goto slowpath_locking;
 
@@ -559,45 +592,65 @@ int dbi_open(MDBX_txn *txn, const MDBX_val *const name, unsigned user_flags, MDB
 
     osal_flush_incoherent_cpu_writeback();
     if (user_flags != MDBX_ACCEDE &&
-        (((user_flags ^ snap.flags) & DB_PERSISTENT_FLAGS) || (keycmp && keycmp != env->kvs[i].clc.k.cmp) ||
-         (datacmp && datacmp != env->kvs[i].clc.v.cmp)))
+        (((user_flags ^ snap.flags) & DB_PERSISTENT_FLAGS) || (keycmp && keycmp != env->kvs[slot].clc.k.cmp) ||
+         (datacmp && datacmp != env->kvs[slot].clc.v.cmp)))
       /* есть подозрение что пользователь открывает таблицу с другими флагами/атрибутами
        * или другими компараторами, поэтому уходим в безопасный режим */
       goto slowpath_locking;
 
-    rc = dbi_check(txn, i);
-    if (rc == MDBX_BAD_DBI && txn->dbi_state[i] == (DBI_OLDEN | DBI_LINDO)) {
+    rc = dbi_check(txn, slot);
+    if (rc == MDBX_BAD_DBI && txn->dbi_state[slot] == (DBI_OLDEN | DBI_LINDO)) {
       /* хендл использовался, стал невалидным,
-       * но теперь явно пере-открывается в этой транзакци */
-      eASSERT(env, !txn->cursors[i]);
-      txn->dbi_state[i] = DBI_LINDO;
-      rc = dbi_check(txn, i);
+       * но теперь явно пере-открывается в этой транзакции */
+      goto slowpath_locking;
     }
-    if (likely(rc == MDBX_SUCCESS)) {
-      if (unlikely(snap.sequence != atomic_load32(&env->dbi_seqs[i], mo_AcquireRelease) ||
-                   main_seq != atomic_load32(&env->dbi_seqs[MAIN_DBI], mo_AcquireRelease) ||
-                   snap.flags != env->dbs_flags[i] || snap_name.iov_base != env->kvs[i].name.iov_base ||
-                   snap_name.iov_len != env->kvs[i].name.iov_len))
-        /* похоже на столкновение с параллельно работающим обновлением */
-        goto slowpath_locking;
-      rc = dbi_bind(txn, i, user_flags, keycmp, datacmp);
-      if (likely(rc == MDBX_SUCCESS))
-        *dbi = (MDBX_dbi)i;
+    if (unlikely(rc != MDBX_SUCCESS))
+      return rc;
+
+    if (unlikely(snap.sequence != atomic_load32(&env->dbi_seqs[slot], mo_AcquireRelease) ||
+                 main_seq != atomic_load32(&env->dbi_seqs[MAIN_DBI], mo_AcquireRelease) ||
+                 snap.flags != env->dbs_flags[slot] || snap_name.iov_base != env->kvs[slot].name.iov_base ||
+                 snap_name.iov_len != env->kvs[slot].name.iov_len))
+      /* похоже на столкновение с параллельно работающим обновлением */
+      goto slowpath_locking;
+
+    rc = dbi_bind(txn, slot, user_flags, keycmp, datacmp);
+    if (unlikely(rc != MDBX_SUCCESS))
+      return rc;
+
+    tASSERT(txn, F_ISSET(txn->dbi_state[slot], DBI_LINDO | DBI_VALID));
+    if (txn->dbi_state[slot] & DBI_STALE) {
+      rc = tbl_fetch(txn, &cx.outer, fastpath_slot = slot, name, user_flags);
+      if (unlikely(rc != MDBX_SUCCESS)) {
+        if (rc == MDBX_NOTFOUND && (user_flags & MDBX_CREATE))
+          /* таблицы уже нет, но запрошено её пересоздание */
+          goto slowpath_locking;
+
+        return dbi_gone(txn, slot, rc);
+      }
+      txn->dbi_state[slot] -= DBI_STALE;
     }
-    return rc;
+    *dbi = (MDBX_dbi)slot;
+    return MDBX_SUCCESS;
   }
 
   /* Fail, if no free slot and max hit */
-  if (unlikely(!have_free_slot))
+  if (unlikely(first_free_slot >= env->max_dbi))
     return MDBX_DBS_FULL;
 
-slowpath_locking:
+  if (!(user_flags & MDBX_CREATE)) {
+    rc = tbl_fetch(txn, &cx.outer, fastpath_slot = first_free_slot, name, user_flags);
+    if (unlikely(rc != MDBX_SUCCESS))
+      return rc;
+  }
 
+slowpath_locking:
 #endif /* MDBX_ENABLE_DBI_LOCKFREE */
 
+  cx.userctx = dbi;
   rc = osal_fastmutex_acquire(&txn->env->dbi_lock);
   if (likely(rc == MDBX_SUCCESS)) {
-    rc = dbi_open_locked(txn, user_flags, dbi, keycmp, datacmp, *name);
+    rc = dbi_open_locked(txn, &cx, user_flags, keycmp, datacmp, *name, fastpath_slot);
     ENSURE(txn->env, osal_fastmutex_release(&txn->env->dbi_lock) == MDBX_SUCCESS);
   }
   return rc;
