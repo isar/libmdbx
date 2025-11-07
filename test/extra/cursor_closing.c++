@@ -42,7 +42,7 @@ static char log_buffer[1024];
 
 //--------------------------------------------------------------------------------------------
 
-bool case0(mdbx::env env) {
+bool case0_trivia(mdbx::env env) {
   auto txn = env.start_write();
   auto table = txn.create_map("case0", mdbx::key_mode::usual, mdbx::value_mode::single);
   auto cursor_1 = txn.open_cursor(table);
@@ -395,7 +395,7 @@ int doit() {
   mdbx::env_managed env(db_filename, mdbx::env_managed::create_parameters(),
                         mdbx::env::operate_parameters(N + 2, 0, mdbx::env::nested_transactions));
 
-  bool ok = case0(env);
+  bool ok = case0_trivia(env);
   ok = case1(env) && ok;
   ok = case2(env) && ok;
 
