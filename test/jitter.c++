@@ -22,9 +22,7 @@ void testcase_jitter::check_dbi_error(int expect, const char *stage) {
 
 bool testcase_jitter::run() {
   int err;
-  size_t upper_limit = config.params.size_upper;
-  if (upper_limit < 1)
-    upper_limit = config.params.size_now * 2;
+  size_t upper_limit = (config.params.size_upper < 1) ? config.params.size_now * 2 : config.params.size_upper;
 
   tablename_buf buffer;
   const char *const tablename = db_tablename(buffer);
