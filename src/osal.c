@@ -1646,6 +1646,16 @@ int osal_fsetsize(mdbx_filehandle_t fd, const uint64_t length) {
     return MDBX_SUCCESS;
 #endif
 
+#if defined(__linux__) || defined(__gnu_linux__)
+  if (globals.linux_kernel_version < 0x05110000 && globals.linux_kernel_version >= 0x050a0000) {
+    struct statfs statfs_info;
+    if (fstatfs(fd, &statfs_info))
+      return errno;
+    if (statfs_info.f_type == 0xEF53 /* EXT4_SUPER_MAGIC */ && unlikely(fdatasync(fd)))
+      return errno;
+  }
+#endif /* Linux */
+
   return unlikely(ftruncate(fd, length)) ? errno : MDBX_SUCCESS;
 
 #endif /* !Windows */
