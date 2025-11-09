@@ -110,6 +110,23 @@ typedef struct _FILE_PROVIDER_EXTERNAL_INFO_V1 {
 #define ERROR_NOT_CAPABLE 775L
 #endif
 
+#ifndef _CRT_ASSERT
+#define _CRT_ASSERT 2
+#endif
+
+#ifndef _ACRTIMP
+#if defined _CRTIMP && !defined _VCRT_DEFINED_CRTIMP
+#define _ACRTIMP _CRTIMP
+#elif !defined _CORECRT_BUILD && defined _DLL
+#define _ACRTIMP __declspec(dllimport)
+#else
+#define _ACRTIMP
+#endif
+#endif
+
+_ACRTIMP int __cdecl _CrtDbgReport(_In_ int _ReportType, _In_opt_z_ char const *_FileName, _In_ int _Linenumber,
+                                   _In_opt_z_ char const *_ModuleName, _In_opt_z_ char const *_Format, ...);
+
 #endif /* _WIN32 || _WIN64 */
 
 /*----------------------------------------------------------------------------*/
