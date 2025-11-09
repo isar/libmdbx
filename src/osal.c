@@ -205,7 +205,7 @@ __cold void mdbx_assert_fail(const MDBX_env *env, const char *msg, const char *f
   assert_fail(msg, func, line);
 }
 
-MDBX_NORETURN __cold void assert_fail(const char *msg, const char *func, unsigned line) {
+__cold void assert_fail(const char *msg, const char *func, unsigned line) {
 #endif /* MDBX_DEBUG */
 
   if (globals.logger.ptr)
@@ -224,13 +224,19 @@ MDBX_NORETURN __cold void assert_fail(const char *msg, const char *func, unsigne
 
   while (1) {
 #if defined(_WIN32) || defined(_WIN64)
-#if !MDBX_WITHOUT_MSVC_CRT && defined(_DEBUG)
-    _CrtDbgReport(_CRT_ASSERT, func ? func : "unknown", line, "libmdbx", "assertion failed: %s", msg);
+#if defined(_DEBUG) && !MDBX_WITHOUT_MSVC_CRT
+    if (_CrtDbgReport(_CRT_ASSERT, func ? func : "unknown", line, "libmdbx", "assertion failed: %s", msg) == 0)
+      return /* user chooses the "Continue" button */;
+    else {
+      /* user chooses the "Retry" button */
+      if (IsDebuggerPresent())
+        DebugBreak();
+    }
 #else
     if (IsDebuggerPresent())
       DebugBreak();
-#endif
     FatalExit(STATUS_ASSERTION_FAILURE);
+#endif
 #else
     abort();
 #endif
@@ -252,14 +258,14 @@ __cold void mdbx_panic(const char *fmt, ...) {
 
   while (1) {
 #if defined(_WIN32) || defined(_WIN64)
-#if !MDBX_WITHOUT_MSVC_CRT && defined(_DEBUG)
+#if defined(_DEBUG) && !MDBX_WITHOUT_MSVC_CRT
     _CrtDbgReport(_CRT_ASSERT, "mdbx.c", 0, "libmdbx", "panic: %s", const_message);
 #else
     OutputDebugStringA("\r\nMDBX-PANIC: ");
     OutputDebugStringA(const_message);
+#endif
     if (IsDebuggerPresent())
       DebugBreak();
-#endif
     FatalExit(ERROR_UNHANDLED_ERROR);
 #else
     __assert_fail(const_message, "mdbx-panic", 0, const_message);

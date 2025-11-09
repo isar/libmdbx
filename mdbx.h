@@ -1012,7 +1012,10 @@ MDBX_NORETURN LIBMDBX_API void mdbx_panic(const char *fmt, ...) MDBX_PRINTF_ARGS
 
 /** \brief Panics with asserton failed message and causes abnormal process
  * termination. */
-MDBX_NORETURN LIBMDBX_API void mdbx_assert_fail(const MDBX_env *env, const char *msg, const char *func, unsigned line);
+#if !((defined(_WIN32) || defined(_WIN64)) && !MDBX_WITHOUT_MSVC_CRT)
+MDBX_NORETURN
+#endif /* MDBX_WITHOUT_MSVC_CRT */
+LIBMDBX_API void mdbx_assert_fail(const MDBX_env *env, const char *msg, const char *func, unsigned line);
 /** end of c_debug @} */
 
 /** \brief Environment flags

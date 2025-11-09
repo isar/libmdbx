@@ -86,7 +86,10 @@ MDBX_INTERNAL void debug_log_va(int level, const char *function, int line, const
 #if MDBX_DEBUG
 #define ASSERT_FAIL(env, msg, func, line) mdbx_assert_fail(env, msg, func, line)
 #else /* MDBX_DEBUG */
-MDBX_NORETURN __cold void assert_fail(const char *msg, const char *func, unsigned line);
+#if !((defined(_WIN32) || defined(_WIN64)) && defined(_DEBUG) && !MDBX_WITHOUT_MSVC_CRT)
+MDBX_NORETURN
+#endif
+__cold void assert_fail(const char *msg, const char *func, unsigned line);
 #define ASSERT_FAIL(env, msg, func, line)                                                                              \
   do {                                                                                                                 \
     (void)(env);                                                                                                       \
