@@ -513,7 +513,9 @@ __cold void rthc_dtor(const uint32_t current_pid) {
     MDBX_env *const env = rthc_table[i].env;
     if (env->pid != current_pid)
       continue;
-    if (!(env->flags & ENV_TXKEY))
+    if (!env->lck_mmap.lck || env->lck_mmap.base == MAP_FAILED)
+      continue;
+    if (!(env->flags & ENV_TXKEY) || !env->lck_mmap.lck)
       continue;
     env->flags -= ENV_TXKEY;
     reader_slot_t *const begin = &env->lck_mmap.lck->rdt[0];
