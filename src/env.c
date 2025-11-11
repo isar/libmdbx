@@ -305,6 +305,12 @@ __cold int env_open(MDBX_env *env, mdbx_mode_t mode) {
 
   env->fd4meta = env->lazy_fd;
 #if defined(_WIN32) || defined(_WIN64)
+  env->dxb_lock_event = CreateEventW(nullptr, true, false, nullptr);
+  if (unlikely(!env->dxb_lock_event))
+    return (int)GetLastError();
+  env->lck_lock_event = CreateEventW(nullptr, true, false, nullptr);
+  if (unlikely(!env->lck_lock_event))
+    return (int)GetLastError();
   eASSERT(env, env->ioring.overlapped_fd == 0);
   bool ior_direct = false;
   if (!(env->flags & (MDBX_RDONLY | MDBX_SAFE_NOSYNC | MDBX_NOMETASYNC | MDBX_EXCLUSIVE))) {
@@ -346,9 +352,6 @@ __cold int env_open(MDBX_env *env, mdbx_mode_t mode) {
                        &env->ioring.overlapped_fd, 0);
     if (unlikely(rc != MDBX_SUCCESS))
       return rc;
-    env->dxb_lock_event = CreateEventW(nullptr, true, false, nullptr);
-    if (unlikely(!env->dxb_lock_event))
-      return (int)GetLastError();
     osal_fseek(env->ioring.overlapped_fd, safe_parking_lot_offset);
   }
 #else
@@ -544,6 +547,10 @@ __cold int env_close(MDBX_env *env, bool resurrect_after_fork) {
   if (env->dxb_lock_event != INVALID_HANDLE_VALUE) {
     CloseHandle(env->dxb_lock_event);
     env->dxb_lock_event = INVALID_HANDLE_VALUE;
+  }
+  if (env->lck_lock_event != INVALID_HANDLE_VALUE) {
+    CloseHandle(env->lck_lock_event);
+    env->lck_lock_event = INVALID_HANDLE_VALUE;
   }
   eASSERT(env, !resurrect_after_fork);
   if (env->pathname_char) {

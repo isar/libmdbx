@@ -206,6 +206,23 @@ typedef struct osal_mmap {
 
 #define MDBX_HAVE_PWRITEV 0
 
+static inline int osal_waitstatus2errcode(DWORD result) {
+  switch (result) {
+  case WAIT_OBJECT_0:
+    return MDBX_SUCCESS;
+  case WAIT_FAILED:
+    return (int)GetLastError();
+  case WAIT_ABANDONED:
+    return ERROR_ABANDONED_WAIT_0;
+  case WAIT_IO_COMPLETION:
+    return ERROR_USER_APC;
+  case WAIT_TIMEOUT:
+    return ERROR_TIMEOUT;
+  default:
+    return ERROR_UNHANDLED_ERROR;
+  }
+}
+
 #elif defined(__ANDROID_API__)
 
 #if __ANDROID_API__ < 24

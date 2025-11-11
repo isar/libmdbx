@@ -245,7 +245,8 @@ __cold int mdbx_env_create(MDBX_env **penv) {
 
 #if defined(_WIN32) || defined(_WIN64)
   imports.srwl_Init(&env->remap_guard);
-  InitializeCriticalSection(&env->windowsbug_lock);
+  InitializeCriticalSection(&env->lck_event_cs);
+  InitializeCriticalSection(&env->dxb_event_cs);
 #else
   rc = osal_fastmutex_init(&env->remap_guard);
   if (unlikely(rc != MDBX_SUCCESS)) {
@@ -638,7 +639,8 @@ __cold int mdbx_env_close_ex(MDBX_env *env, bool dont_sync) {
   ENSURE(env, osal_fastmutex_destroy(&env->dbi_lock) == MDBX_SUCCESS);
 #if defined(_WIN32) || defined(_WIN64)
   /* remap_guard don't have destructor (Slim Reader/Writer Lock) */
-  DeleteCriticalSection(&env->windowsbug_lock);
+  DeleteCriticalSection(&env->lck_event_cs);
+  DeleteCriticalSection(&env->dxb_event_cs);
 #else
   ENSURE(env, osal_fastmutex_destroy(&env->remap_guard) == MDBX_SUCCESS);
 #endif /* Windows */
@@ -922,6 +924,7 @@ __cold int mdbx_preopen_snapinfoW(const wchar_t *pathname, MDBX_envinfo *out, si
   env.fd4meta = INVALID_HANDLE_VALUE;
 #if defined(_WIN32) || defined(_WIN64)
   env.dxb_lock_event = INVALID_HANDLE_VALUE;
+  env.lck_lock_event = INVALID_HANDLE_VALUE;
   env.ioring.overlapped_fd = INVALID_HANDLE_VALUE;
 #endif /* Windows */
   env_options_init(&env);

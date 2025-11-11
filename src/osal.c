@@ -14,23 +14,6 @@
 #include <crtdbg.h>
 #endif
 
-static int waitstatus2errcode(DWORD result) {
-  switch (result) {
-  case WAIT_OBJECT_0:
-    return MDBX_SUCCESS;
-  case WAIT_FAILED:
-    return (int)GetLastError();
-  case WAIT_ABANDONED:
-    return ERROR_ABANDONED_WAIT_0;
-  case WAIT_IO_COMPLETION:
-    return ERROR_USER_APC;
-  case WAIT_TIMEOUT:
-    return ERROR_TIMEOUT;
-  default:
-    return ERROR_UNHANDLED_ERROR;
-  }
-}
-
 /* Map a result from an NTAPI call to WIN32 error code. */
 static int ntstatus2errcode(NTSTATUS status) {
   DWORD dummy;
@@ -420,7 +403,7 @@ int osal_condpair_destroy(osal_condpair_t *condpair) {
 int osal_condpair_lock(osal_condpair_t *condpair) {
 #if defined(_WIN32) || defined(_WIN64)
   DWORD code = WaitForSingleObject(condpair->mutex, INFINITE);
-  return waitstatus2errcode(code);
+  return osal_waitstatus2errcode(code);
 #else
   return osal_pthread_mutex_lock(&condpair->mutex);
 #endif
@@ -450,7 +433,7 @@ int osal_condpair_wait(osal_condpair_t *condpair, bool part) {
     if (code == WAIT_OBJECT_0)
       return MDBX_SUCCESS;
   }
-  return waitstatus2errcode(code);
+  return osal_waitstatus2errcode(code);
 #else
   return pthread_cond_wait(&condpair->cond[part], &condpair->mutex);
 #endif
@@ -1192,7 +1175,7 @@ int osal_openfile(const enum osal_openfile_purpose purpose, const MDBX_env *env,
   case MDBX_OPEN_LCK:
     CreationDisposition = OPEN_ALWAYS;
     DesiredAccess |= GENERIC_READ | GENERIC_WRITE;
-    FlagsAndAttributes |= FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_TEMPORARY;
+    FlagsAndAttributes |= FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_OVERLAPPED;
     break;
   case MDBX_OPEN_DXB_READ:
     CreationDisposition = OPEN_EXISTING;
@@ -1694,7 +1677,7 @@ int osal_thread_create(osal_thread_t *thread, THREAD_RESULT(THREAD_CALL *start_r
 int osal_thread_join(osal_thread_t thread) {
 #if defined(_WIN32) || defined(_WIN64)
   DWORD code = WaitForSingleObject(thread, INFINITE);
-  return waitstatus2errcode(code);
+  return osal_waitstatus2errcode(code);
 #else
   void *unused_retval = &unused_retval;
   return pthread_join(thread, &unused_retval);

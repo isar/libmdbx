@@ -352,6 +352,7 @@ struct MDBX_env {
   mdbx_filehandle_t dsync_fd, fd4meta;
 #if defined(_WIN32) || defined(_WIN64)
   HANDLE dxb_lock_event;
+  HANDLE lck_lock_event;
 #endif                  /* Windows */
   osal_mmap_t lck_mmap; /* The lock file */
   lck_t *lck;
@@ -481,7 +482,8 @@ struct MDBX_env {
 #if defined(_WIN32) || defined(_WIN64)
   osal_srwlock_t remap_guard;
   /* Workaround for LockFileEx and WriteFile multithread bug */
-  CRITICAL_SECTION windowsbug_lock;
+  CRITICAL_SECTION lck_event_cs;
+  CRITICAL_SECTION dxb_event_cs;
   char *pathname_char; /* cache of multi-byte representation of pathname
                              to the DB files */
 #else
