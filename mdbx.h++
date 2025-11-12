@@ -6415,6 +6415,12 @@ template <> struct hash<::mdbx::slice> {
   MDBX_CXX14_CONSTEXPR size_t operator()(::mdbx::slice const &slice) const noexcept { return slice.hash_value(); }
 };
 
+template <class ALLOCATOR, typename CAPACITY_POLICY> struct hash<::mdbx::buffer<ALLOCATOR, CAPACITY_POLICY>> {
+  MDBX_CXX14_CONSTEXPR size_t operator()(::mdbx::buffer<ALLOCATOR, CAPACITY_POLICY> const &buffer) const noexcept {
+    return buffer.hash_value();
+  }
+};
+
 /// end cxx_api @}
 } // namespace std
 
