@@ -370,6 +370,9 @@ class txn_managed;
 class cursor;
 class cursor_managed;
 
+/// \brief Transaction ID and MVCC-snapshot number.
+using txnid = uint64_t;
+
 /// \brief Default buffer.
 using default_buffer = buffer<default_allocator, default_capacity_policy>;
 
