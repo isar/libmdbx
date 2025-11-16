@@ -1000,6 +1000,9 @@ struct LIBMDBX_API_TYPE slice : public ::MDBX_val {
   friend MDBX_CXX14_CONSTEXPR bool operator<=(const slice &a, const slice &b) noexcept;
   friend MDBX_CXX14_CONSTEXPR bool operator>=(const slice &a, const slice &b) noexcept;
   friend MDBX_CXX14_CONSTEXPR bool operator!=(const slice &a, const slice &b) noexcept;
+#if defined(__cpp_impl_three_way_comparison) && __cpp_impl_three_way_comparison >= 201907L
+  friend MDBX_CXX14_CONSTEXPR auto operator<=>(const slice &a, const slice &b) noexcept;
+#endif /* __cpp_impl_three_way_comparison */
 
   /// \brief Checks the slice is not refers to null address or has zero length.
   MDBX_CXX11_CONSTEXPR bool is_valid() const noexcept { return !(iov_base == nullptr && iov_len != 0); }
@@ -2756,6 +2759,9 @@ struct pair {
   friend MDBX_CXX14_CONSTEXPR bool operator<=(const pair &a, const pair &b) noexcept;
   friend MDBX_CXX14_CONSTEXPR bool operator>=(const pair &a, const pair &b) noexcept;
   friend MDBX_CXX14_CONSTEXPR bool operator!=(const pair &a, const pair &b) noexcept;
+#if defined(__cpp_impl_three_way_comparison) && __cpp_impl_three_way_comparison >= 201907L
+  friend MDBX_CXX14_CONSTEXPR auto operator<=>(const pair &a, const pair &b) noexcept;
+#endif /* __cpp_impl_three_way_comparison */
 };
 
 /// \brief Combines pair of slices for key and value with boolean flag to
@@ -5014,6 +5020,12 @@ MDBX_NOTHROW_PURE_FUNCTION MDBX_CXX14_CONSTEXPR bool operator!=(const slice &a, 
   return slice::compare_fast(a, b) != 0;
 }
 
+#if defined(__cpp_impl_three_way_comparison) && __cpp_impl_three_way_comparison >= 201907L
+MDBX_NOTHROW_PURE_FUNCTION MDBX_CXX14_CONSTEXPR auto operator<=>(const slice &a, const slice &b) noexcept {
+  return slice::compare_lexicographically(a, b);
+}
+#endif /* __cpp_impl_three_way_comparison */
+
 template <class ALLOCATOR>
 inline string<ALLOCATOR> slice::as_hex_string(bool uppercase, unsigned wrap_width, const ALLOCATOR &allocator) const {
   return to_hex(*this, uppercase, wrap_width).as_string<ALLOCATOR>(allocator);
@@ -5111,6 +5123,12 @@ MDBX_NOTHROW_PURE_FUNCTION MDBX_CXX14_CONSTEXPR bool operator!=(const pair &a, c
          memcmp(a.key.data(), b.key.data(), a.key.length()) != 0 ||
          memcmp(a.value.data(), b.value.data(), a.value.length()) != 0;
 }
+
+#if defined(__cpp_impl_three_way_comparison) && __cpp_impl_three_way_comparison >= 201907L
+MDBX_NOTHROW_PURE_FUNCTION MDBX_CXX14_CONSTEXPR auto operator<=>(const pair &a, const pair &b) noexcept {
+  return pair::compare_lexicographically(a, b);
+}
+#endif /* __cpp_impl_three_way_comparison */
 
 //------------------------------------------------------------------------------
 
