@@ -9,6 +9,13 @@
 
 #include "essentials.h"
 
+#ifdef _MSC_VER
+#pragma warning(push, 1)
+#if _MSC_VER > 1913
+#pragma warning(disable : 5054) /* deprecated between enumerations of different types */
+#endif
+#endif /* MSVC */
+
 typedef struct dp dp_t;
 typedef struct dpl dpl_t;
 typedef struct kvx kvx_t;
@@ -561,6 +568,8 @@ MDBX_MAYBE_UNUSED static void static_checks(void) {
 
 /******************************************************************************/
 
+#ifndef __cplusplus
+
 #include "node.h"
 
 #include "dbi.h"
@@ -588,3 +597,9 @@ MDBX_MAYBE_UNUSED static void static_checks(void) {
 #include "walk.h"
 
 #include "sort.h"
+
+#endif /* __cplusplus */
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif /* MSVC */

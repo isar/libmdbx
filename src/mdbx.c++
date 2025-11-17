@@ -27,6 +27,8 @@
 #include <cctype> // for isxdigit(), etc
 #include <system_error>
 
+#include "internals.h"
+
 namespace {
 
 #if 0 /* Unused for now */
@@ -1492,7 +1494,7 @@ void txn_managed::commit(commit_latency *latency) {
 }
 
 void txn_managed::commit_embark_read() {
-  auto env = this->env();
+  auto env = handle_->env;
   commit();
   error::success_or_throw(::mdbx_txn_begin(env, nullptr, MDBX_TXN_RDONLY, &handle_));
 }

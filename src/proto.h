@@ -31,7 +31,7 @@ MDBX_INTERNAL int __must_check_result dxb_sync_locked(MDBX_env *env, unsigned fl
 #if defined(ENABLE_MEMCHECK) || defined(__SANITIZE_ADDRESS__)
 MDBX_INTERNAL void dxb_sanitize_tail(MDBX_env *env, MDBX_txn *txn);
 #else
-static inline void dxb_sanitize_tail(MDBX_env *env, MDBX_txn *txn) {
+MDBX_MAYBE_UNUSED static inline void dxb_sanitize_tail(MDBX_env *env, MDBX_txn *txn) {
   (void)env;
   (void)txn;
 }

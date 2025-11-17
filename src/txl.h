@@ -25,6 +25,6 @@ MDBX_MAYBE_UNUSED MDBX_INTERNAL void txl_sort(txl_t txl);
 
 MDBX_MAYBE_UNUSED MDBX_INTERNAL bool txl_contain(const txl_t txl, txnid_t id);
 
-static inline size_t txl_alloclen(const_txl_t txl) { return txl[-1]; }
+MDBX_MAYBE_UNUSED static inline size_t txl_alloclen(const_txl_t txl) { return txl[-1]; }
 
-static inline size_t txl_size(const_txl_t txl) { return txl[0]; }
+MDBX_MAYBE_UNUSED static inline size_t txl_size(const_txl_t txl) { return txl[0]; }
