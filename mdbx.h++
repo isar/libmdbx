@@ -4487,6 +4487,11 @@ public:
   inline void upsert(const slice &key, const slice &value);
   inline slice upsert_reserve(const slice &key, size_t value_length);
 
+  /// \brief Updates value associated with a key at the current cursor position.
+  void update_current(const slice &value);
+  /// \brief Reserves and returns the space to storing a value associated with a key at the current cursor position.
+  slice reverse_current(size_t value_length);
+
   inline void update(const slice &key, const slice &value);
   inline bool try_update(const slice &key, const slice &value);
   inline slice update_reserve(const slice &key, size_t value_length);

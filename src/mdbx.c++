@@ -1609,6 +1609,26 @@ __cold bool txn::rename_map(const ::std::string &old_name, const ::std::string &
 
 //------------------------------------------------------------------------------
 
+void cursor::update_current(const slice &value) {
+  default_buffer holder;
+  auto key = current().key;
+  if (error::boolean_or_throw(mdbx_is_dirty(handle_->txn, key.iov_base)))
+    key = holder.assign(key);
+
+  update(key, value);
+}
+
+slice cursor::reverse_current(size_t value_length) {
+  default_buffer holder;
+  auto key = current().key;
+  if (error::boolean_or_throw(mdbx_is_dirty(handle_->txn, key.iov_base)))
+    key = holder.assign(key);
+
+  return update_reserve(key, value_length);
+}
+
+//------------------------------------------------------------------------------
+
 __cold ::std::ostream &operator<<(::std::ostream &out, const slice &it) {
   out << "{";
   if (!it.is_valid())
