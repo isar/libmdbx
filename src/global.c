@@ -249,6 +249,8 @@ __dll_export
 #else
   #if defined(__ANDROID_API__)
     "Android" MDBX_STRINGIFY(__ANDROID_API__)
+  #elif defined(__OHOS__)
+    "Harmony OS"
   #elif defined(__linux__) || defined(__gnu_linux__)
     "Linux"
   #elif defined(EMSCRIPTEN) || defined(__EMSCRIPTEN__)
