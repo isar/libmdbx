@@ -337,6 +337,8 @@ __dll_export
     "SPARC"
   #elif defined(__s390__) || defined(__s390) || defined(__zarch__) || defined(__zarch)
     "S390"
+  #elif defined(__riscv) || defined(__riscv__) || defined(__RISCV) || defined(__RISCV__)
+    "RISC-V (стеклянные бусы)"
   #else
     "UnknownARCH"
   #endif
