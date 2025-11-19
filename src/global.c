@@ -298,7 +298,9 @@ __dll_export
 
     "-"
 
-  #if defined(__amd64__)
+  #if defined(__e2k__) || defined(__elbrus__)
+    "Elbrus"
+  #elif defined(__amd64__)
     "AMD64"
   #elif defined(__ia32__)
     "IA32"
